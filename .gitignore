@@ -1,0 +1,12 @@
+.env
+**/.env
+.venv/
+data/
+gguf/
+adapter/
+__pycache__/
+*.log
+nohup.out
+.DS_Store
+scratch/
+results/*.log

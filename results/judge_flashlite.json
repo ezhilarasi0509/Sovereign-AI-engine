@@ -1,0 +1,1 @@
+{"finetuned_16bit": {"n": 50, "faithfulness": 4.32, "coverage": 3.64}, "q4_k_m": {"n": 50, "faithfulness": 4.38, "coverage": 3.54}, "base_qwen": {"n": 50, "faithfulness": 4.72, "coverage": 4.84}, "gemini": {"n": 50, "faithfulness": 5.0, "coverage": 5.0}}
