@@ -1,89 +1,240 @@
 import json, os, numpy as np
 from rouge_score import rouge_scorer
-GPU_HR=0.50; IN_P,OUT_P=0.25,1.50
+GPU_HR=0.50; IN_P,OUT_P=0.25,1.50; HRS=730
 S=rouge_scorer.RougeScorer(["rouge1","rouge2","rougeL"],use_stemmer=True)
-SYS=[("Base Qwen2.5-3B (Ollama, Mac)","results/qwen2.5_3b.jsonl",0.813),
-     ("Gemini 3.1 Flash-Lite (API)","results/gemini-3.1-flash-lite.jsonl",0.820),
-     ("Fine-tuned 16-bit (vLLM, T4)","results/vllm_16bit_c8.jsonl",0.852),
-     ("Fine-tuned Q4_K_M GGUF (Ollama, Mac)","results/billsum-q4b.jsonl",0.846)]
 def load(p): return [json.loads(l) for l in open(p)]
 def rouge(rows):
     sc=[S.score(r["ref"],r["pred"]) for r in rows]
     return [float(np.mean([x[k].fmeasure for x in sc])) for k in ["rouge1","rouge2","rougeL"]]
-res={n:(rouge(load(p)),b,load(p)) for n,p,b in SYS}
-ft=res["Fine-tuned 16-bit (vLLM, T4)"][0]; q4=res["Fine-tuned Q4_K_M GGUF (Ollama, Mac)"][0]
-base=res["Base Qwen2.5-3B (Ollama, Mac)"][0]; gem=res["Gemini 3.1 Flash-Lite (API)"][0]
-gr=load("results/gemini-3.1-flash-lite.jsonl")
+def lat(rows):
+    l=[r["latency"] for r in rows]; return np.percentile(l,50),np.percentile(l,95)
+SYS=[("base","Base Qwen2.5-3B-Instruct","Ollama on MacBook M4","results/qwen2.5_3b.jsonl",0.813),
+     ("gem","Gemini 3.1 Flash-Lite","Google API (frontier baseline)","results/gemini-3.1-flash-lite.jsonl",0.820),
+     ("ft","Fine-tuned Qwen2.5-3B, 16-bit","vLLM on Kaggle T4 (concurrency 8)","results/vllm_16bit_c8.jsonl",0.852),
+     ("q4","Fine-tuned Qwen2.5-3B, Q4_K_M","Ollama on MacBook M4","results/billsum-q4b.jsonl",0.846)]
+D={k:(n,h,load(p),b) for k,n,h,p,b in SYS}
+R={k:rouge(v[2]) for k,v in D.items()}
+L={k:lat(v[2]) for k,v in D.items()}
+base,gem,ft,q4=R["base"],R["gem"],R["ft"],R["q4"]
+gr=D["gem"][2]
 ain=np.mean([r["in_tok"] for r in gr]); aout=np.mean([r["out_tok"] for r in gr])
 api1k=1000*(ain*IN_P+aout*OUT_P)/1e6
-v=json.load(open("results/vllm_16bit_summary.json")); fixed=GPU_HR*730
-cross=fixed/api1k*1000
-def judge_tbl():
-    for f,label in [("results/judge_strong.json","strict rubric, gemini-3.7-flash judge"),("results/judge_flashlite.json","lenient rubric, flash-lite judge")]:
-        if os.path.exists(f):
-            j=json.load(open(f))
-            t=f"LLM judge ({label}, 50 bills, scores 1-5):\n\n| System | Faithfulness | Coverage |\n|---|---|---|\n"
-            for k,n in [("base_qwen","Base Qwen"),("gemini","Gemini Flash-Lite"),("finetuned_16bit","Fine-tuned 16-bit"),("q4_k_m","Fine-tuned Q4_K_M")]:
-                t+=f"| {n} | {j[k]['faithfulness']} | {j[k]['coverage']} |\n"
-            return t
-    return ""
-rows="".join(f"| {n} | {r[0]:.3f} | {r[1]:.3f} | {r[2]:.3f} | {b:.3f} |\n" for n,(r,b,_) in res.items())
-md=f"""# Sovereign AI engine: summarizing US bills with a self-hosted open-weight model
+v=json.load(open("results/vllm_16bit_summary.json"))
+fixed=GPU_HR*HRS; cross=fixed/api1k*1000
+c8=GPU_HR/(v["8"]["req_per_s"]*3600)*1000; c32=GPU_HR/(v["32"]["req_per_s"]*3600)*1000
+cap32=v["32"]["req_per_s"]*3600*HRS
+r2gain=(ft[1]-base[1])/base[1]*100
+keep=q4[0]/ft[0]*100
+qual="".join(f"| {D[k][0]} | {D[k][1]} | {R[k][0]:.3f} | {R[k][1]:.3f} | {R[k][2]:.3f} | {D[k][3]:.3f} |\n" for k in ["base","gem","ft","q4"])
+latt="".join(f"| {D[k][0]} | {D[k][1]} | {L[k][0]:.1f} | {L[k][1]:.1f} |\n" for k in ["base","gem","ft","q4"])
+bench="".join(f"| {c} | {v[c]['p50']} | {v[c]['p95']} | {v[c]['tok_per_s']} | {v[c]['req_per_s']} |\n" for c in ["1","8","32"])
+if os.path.exists("results/judge_strong.json"):
+    j=json.load(open("results/judge_strong.json"))
+    jt="Scores are 1 to 5, from a strict-rubric LLM judge (gemini-3.7-flash) on the first 50 test bills.\n\n| System | Faithfulness | Coverage |\n|---|---|---|\n"
+    for k,n in [("base_qwen","Base Qwen2.5-3B"),("gemini","Gemini 3.1 Flash-Lite"),("finetuned_16bit","Fine-tuned 16-bit"),("q4_k_m","Fine-tuned Q4_K_M")]:
+        jt+=f"| {n} | {j[k]['faithfulness']} | {j[k]['coverage']} |\n"
+    jt+="\nLLM judges are noisy and can favor their own style, so treat this as a sanity check, not a verdict.\n"
+else:
+    jt="An LLM-judge pass is not included. A first attempt with a lenient rubric and Gemini Flash-Lite as judge was discarded: it gave Gemini a perfect 5.0 on its own summaries and ranked the base model above the fine-tuned one, which contradicts every other metric.\n"
+md=f"""# Sovereign AI Engine: summarizing US legislation with a model you run yourself
 
-Question: **should a team pay for a frontier API, or fine-tune and run a small open model on its own hardware?**
-I answered it on BillSum (US congressional bills) with measured quality, latency, throughput and cost.
+> **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, produced better bill summaries than a frontier API baseline on this task, and above roughly **{cross:,.0f} calls per month** it is also cheaper to run yourself.
 
-## Result
-- Fine-tuning a 3B model (LoRA, 1,500 bills, one free T4 epoch) lifted ROUGE-2 from **{base[1]:.3f} to {ft[1]:.3f}** and beat the Gemini 3.1 Flash-Lite API baseline ({gem[1]:.3f}).
-- 4-bit quantization (Q4_K_M) cut the model from 5.8 GB to 1.8 GB and cost **{ft[0]-q4[0]:.3f} ROUGE-1 / {ft[2]-q4[2]:.3f} ROUGE-L**, still above both baselines.
-- Self-hosting beats the API on cost above about **{cross:,.0f} calls/month** (assumes a ${GPU_HR}/hr T4-class GPU running 24/7).
+## 1. Purpose of this project
 
-## Quality (200 BillSum test bills)
-| System | ROUGE-1 | ROUGE-2 | ROUGE-L | BERTScore F1* |
-|---|---|---|---|---|
-{rows}
-*BERTScore used distilbert-base-uncased, so compare only within this table.
+Many organizations (hospitals, banks, courts, governments) want AI to read long documents but cannot send them to an outside company, or find the per-call API bill too high at scale. This project tests the alternative, a **"sovereign" AI engine**: an open-weight model that runs on hardware you control.
 
-{judge_tbl()}
-## Latency, throughput, cost (fine-tuned 16-bit on vLLM, Kaggle T4)
-| Concurrency | P50 (s) | P95 (s) | Tokens/s | Requests/s |
-|---|---|---|---|---|
-""" + "".join(f"| {c} | {v[c]['p50']} | {v[c]['p95']} | {v[c]['tok_per_s']} | {v[c]['req_per_s']} |\n" for c in ["1","8","32"]) + f"""
-- Gemini API: avg {ain:.0f} input + {aout:.0f} output tokens per call = **${api1k:.3f} per 1,000 calls** ($0.25 / $1.50 per 1M tokens, standard rate).
-- Self-hosted T4 at full load: **${GPU_HR/(v['8']['req_per_s']*3600)*1000:.3f}** (concurrency 8) to **${GPU_HR/(v['32']['req_per_s']*3600)*1000:.3f}** (concurrency 32) per 1,000 calls, but the GPU costs ${fixed:.0f}/month whether used or not.
-- Crossover: ~{cross:,.0f} calls/month (~{cross/30:,.0f}/day). See `results/crossover.png`.
+| Question | How this project answers it |
+|---|---|
+| Is a small open model good enough? | Baselined a 3B open model against a frontier API on 200 unseen bills. |
+| Is fine-tuning worth it? | Measured quality before and after LoRA fine-tuning on 1,500 bills. |
+| What does making the model smaller cost? | Compared 16-bit against 4-bit (Q4_K_M) for size and quality. |
+| Can it serve real traffic? | Benchmarked P50 and P95 latency and throughput on vLLM at 1, 8 and 32 concurrent requests. |
+| When does self-hosting become cheaper? | Computed cost per 1,000 calls and the monthly crossover volume. |
+| Is it deployable? | Wrapped it in a FastAPI service with Docker and Phoenix tracing. |
 
-![crossover](results/crossover.png)
+**Who this is for:** engineers and managers deciding between "pay an API" and "run our own model", and anyone who wants a worked, measured example of that decision.
 
-## Why fine-tune at all
-The base 3B model followed the task loosely (ROUGE-2 {base[1]:.3f}). Training on 1,500 expert summaries taught the legislative summary style and length, adding {ft[1]-base[1]:.3f} ROUGE-2.
+## 2. The task and the data
 
-## What quantization cost
-| Format | Size | ROUGE-1 | ROUGE-L |
-|---|---|---|---|
-| fp16 | 5.8 GB | {ft[0]:.3f} | {ft[2]:.3f} |
-| Q8_0 | 3.1 GB | not evaluated | not evaluated |
-| Q4_K_M | 1.8 GB | {q4[0]:.3f} | {q4[2]:.3f} |
+- **Task:** read a US congressional bill and write a short, factual legislative summary (at most 200 words).
+- **Dataset:** [BillSum](https://arxiv.org/abs/1910.00523) (Kornilova and Eidelman, 2019), loaded as `FiscalNote/billsum`: US congressional bills paired with expert-written summaries.
+- **Training data:** 1,500 bills from the train split (bills under 12,000 characters and 3,072 tokens).
+- **Evaluation data:** the first 200 bills of the official test split (under 12,000 characters). None were used for training.
 
-## Stack
-Unsloth + PEFT (LoRA), vLLM (T4 serving), llama.cpp (GGUF), Ollama, FastAPI, Docker, Arize Phoenix tracing.
+## 3. Systems compared
 
-## Run it
-```bash
-pip install -r requirements.txt
-python scripts/prepare_data.py          # BillSum subsets
-python src/run_ollama.py 200 MODEL      # local model baseline
-python src/run_gemini.py 200            # API baseline (GEMINI_API_KEY in .env)
-python src/score.py results/*.jsonl
-python src/cost.py 0.50                 # cost + crossover (arg = GPU $/hr)
-docker build -t sovereign-ai-api api && docker run -p 8080:8080 --env-file .env sovereign-ai-api
+| System | Where it runs | Role |
+|---|---|---|
+| Base Qwen2.5-3B-Instruct | Ollama, MacBook M4 | Small open model, no training |
+| Gemini 3.1 Flash-Lite | Google API | Frontier API baseline |
+| Fine-tuned Qwen2.5-3B, 16-bit | vLLM, Kaggle T4 GPU | The sovereign model at full precision |
+| Fine-tuned Qwen2.5-3B, Q4_K_M | Ollama, MacBook M4 | The same model shrunk to 4-bit |
+
+```mermaid
+flowchart LR
+  A[BillSum bills] --> B[Baselines: base Qwen and Gemini]
+  A --> C[LoRA fine-tune with Unsloth and PEFT]
+  C --> D[Merge adapter into 16-bit model]
+  D --> E[vLLM serving benchmark]
+  D --> F[GGUF quantization Q8_0 and Q4_K_M]
+  F --> G[Q4_K_M on Ollama]
+  B --> H[Quality, latency, cost comparison]
+  E --> H
+  G --> H
+  H --> I[Crossover analysis and FastAPI service]
 ```
 
-## Limitations (read before trusting the numbers)
-- One run per system on 200 bills, no confidence intervals or seeds comparison.
-- ROUGE/BERTScore reward matching the reference style; the LLM judge is also noisy and Gemini graded a system that includes itself.
-- Latencies are not comparable across systems: Q4 ran on a MacBook M4 via Ollama, 16-bit on a Kaggle T4 via vLLM with `--enforce-eager`, Gemini over the network. Use the vLLM table for serving claims.
-- The GPU price (${GPU_HR}/hr) is an assumption; the API price is the list rate at time of writing and excludes batch discounts.
-- Q8_0 was built but not evaluated. PubMedQA was not run.
+## 4. Results
+
+### 4.1 Summary quality (200 test bills)
+
+| System | Runs on | ROUGE-1 | ROUGE-2 | ROUGE-L | BERTScore F1* |
+|---|---|---|---|---|---|
+{qual}
+\\*BERTScore used `distilbert-base-uncased`, so compare these numbers only with each other, not with published BERTScores.
+
+**What this shows**
+- Fine-tuning raised ROUGE-2 from {base[1]:.3f} to {ft[1]:.3f} (about {r2gain:.0f}% relative) and ROUGE-L from {base[2]:.3f} to {ft[2]:.3f}.
+- The fine-tuned model beat the Gemini 3.1 Flash-Lite API baseline on every ROUGE metric and on BERTScore.
+- The gain comes largely from learning the legislative summary style and length, which the BillSum references share. A general-purpose API model is not trained for that style.
+
+### 4.2 LLM-judge check
+{jt}
+### 4.3 What 4-bit quantization cost
+
+| Format | File size | ROUGE-1 | ROUGE-L | Notes |
+|---|---|---|---|---|
+| fp16 | 5.8 GB | {ft[0]:.3f} | {ft[2]:.3f} | Reference quality |
+| Q8_0 | 3.1 GB | not evaluated | not evaluated | Built and uploaded, not scored |
+| Q4_K_M | 1.8 GB | {q4[0]:.3f} | {q4[2]:.3f} | Keeps {keep:.1f}% of fp16 ROUGE-1 at 31% of the size |
+
+Quantizing to 4-bit lost {ft[0]-q4[0]:.3f} ROUGE-1 and {ft[2]-q4[2]:.3f} ROUGE-L, and the 4-bit model still beat both baselines. For a laptop or edge deployment that trade is usually worth it.
+
+### 4.4 Serving benchmark (fine-tuned 16-bit, vLLM, Kaggle T4)
+
+| Concurrent requests | P50 latency (s) | P95 latency (s) | Output tokens/s | Requests/s |
+|---|---|---|---|---|
+{bench}
+- Throughput rises with concurrency (24.6 to 125.5 tokens/s) but latency rises faster, so for interactive use keep concurrency low and add GPUs for volume.
+- The server ran with `--enforce-eager` to fit the free T4. Throughput with CUDA graphs enabled would likely be higher.
+- Quality did not change with load: ROUGE-1 stayed between 0.536 and 0.538 at all concurrency levels.
+
+### 4.5 Observed latency per system (not directly comparable)
+
+| System | Runs on | P50 (s) | P95 (s) |
+|---|---|---|---|
+{latt}
+These come from different hardware and software stacks (a Mac with Ollama, a T4 with vLLM, a network API), so do not rank the systems by this table. Use section 4.4 for serving claims.
+
+### 4.6 Cost and the crossover point
+
+| Item | Value |
+|---|---|
+| Gemini 3.1 Flash-Lite price (standard) | $0.25 per 1M input tokens, $1.50 per 1M output tokens |
+| Average tokens per call (measured) | {ain:.0f} input, {aout:.0f} output |
+| **API cost per 1,000 calls** | **${api1k:.3f}** |
+| Self-hosted T4 cost per 1,000 calls at full load | ${c8:.3f} (concurrency 8) to ${c32:.3f} (concurrency 32) |
+| GPU fixed cost (assumed ${GPU_HR}/hr, 24/7) | ${fixed:.0f} per month |
+| Capacity of one T4 at concurrency 32 | about {cap32:,.0f} calls per month |
+| **Crossover volume** | **about {cross:,.0f} calls/month (about {cross/30:,.0f}/day)** |
+
+![Monthly cost: API versus self-hosted](results/crossover.png)
+
+Below the crossover the API is cheaper because you pay nothing when idle. Above it, a busy GPU wins. The GPU price is an assumption: change it with `python src/cost.py YOUR_PRICE`.
+
+## 5. Which option should you pick?
+
+| Your situation | Suggested option |
+|---|---|
+| Low or unpredictable volume, data may leave your network | Frontier API |
+| Documents cannot leave your infrastructure (regulated or private data) | Self-host, even below the crossover |
+| Steady volume above about {cross/30:,.0f} calls per day | Self-host the fine-tuned 16-bit model on a GPU |
+| Laptop, edge or small server | Fine-tuned Q4_K_M, a small quality loss for a 3x smaller file |
+| Need top quality on a narrow, well-defined task | Fine-tune a small model on your own examples |
+
+## 6. What was built (repository map)
+
+| Path | What it does |
+|---|---|
+| `scripts/prepare_data.py` | Builds the train and test subsets from BillSum |
+| `scripts/train_unsloth.py` | LoRA fine-tuning with Unsloth and PEFT (run on a GPU) |
+| `scripts/merge_lora_cpu.py` | Merges the adapter into the base model on CPU |
+| `scripts/quantize_gguf.sh` | Builds Q8_0 and Q4_K_M GGUF files with llama.cpp |
+| `scripts/bench_vllm.py` | Concurrency benchmark against a vLLM server |
+| `src/run_ollama.py`, `src/run_gemini.py` | Generate summaries from the local model and the API |
+| `src/score.py`, `src/bertscore_eval.py` | ROUGE and BERTScore evaluation |
+| `src/judge_strict.py` | Strict-rubric LLM judge for faithfulness and coverage |
+| `src/cost.py` | Cost per 1,000 calls and the crossover chart |
+| `api/` | FastAPI service, Dockerfile, Phoenix tracing, switchable backends |
+| `results/` | Raw model outputs, benchmark summary, crossover chart |
+
+## 7. The serving API
+
+`api/app.py` exposes `POST /summarize` and `GET /health`. A request picks a backend (`ollama`, `vllm` or `gemini`) through the same OpenAI-compatible interface, so the sovereign model and the API baseline can be swapped with one field. Every call is traced in Arize Phoenix (latency, tokens, input and output). Run `phoenix serve`, then open http://localhost:6006.
+
+## 8. Technology and why each piece was used
+
+| Tool | Purpose here |
+|---|---|
+| Unsloth | Fast, low-memory fine-tuning on a free T4 |
+| Hugging Face PEFT / LoRA | Trains a small adapter (about 125 MB) instead of all 3B weights |
+| vLLM | High-throughput GPU serving with continuous batching |
+| llama.cpp / GGUF | Quantizing the model to 8-bit and 4-bit |
+| Ollama | Running the models locally on a Mac |
+| FastAPI and Docker | A deployable summarization service |
+| Arize Phoenix | Open-source tracing and observability |
+| Kaggle and Colab | Free GPUs for training and benchmarking |
+
+## 9. Reproduce it
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env              # add GEMINI_API_KEY and HF_TOKEN
+python scripts/prepare_data.py
+python src/run_ollama.py 200 qwen2.5:3b       # base model baseline
+python src/run_gemini.py 200                  # API baseline
+python src/score.py results/*.jsonl
+python src/cost.py 0.50                       # argument = GPU price per hour
+docker build -t sovereign-ai-api api
+docker run -p 8080:8080 --env-file .env sovereign-ai-api
+```
+
+Training, merging and the vLLM benchmark need a GPU (a free Kaggle or Colab T4 works). See the files in `scripts/`. The data folder, GGUF files and keys are not committed.
+
+## 10. Limitations (read before trusting the numbers)
+
+- One run per system on 200 bills, with no confidence intervals and no repeated seeds.
+- ROUGE and BERTScore reward matching the reference summary style, not necessarily factual correctness.
+- Gemini was also graded by a Gemini judge, and a first lenient judging pass was discarded for scoring itself 5.0 out of 5.0.
+- Latencies across systems are not comparable (Mac and Ollama, T4 and vLLM, network API).
+- The GPU price is an assumption, and the API price is the list rate at the time of writing, without batch or cache discounts.
+- Q8_0 was built but not evaluated. 4-bit quantization inside vLLM (AWQ or GPTQ) was not tested, because `bitsandbytes` is not supported in the vLLM version used.
+- PubMedQA, the harder variant in the original brief, was not run.
+- Check the license of the base model (Qwen2.5-3B-Instruct) and of BillSum before commercial use.
+
+## 11. Next steps
+
+Evaluate Q8_0; add AWQ or GPTQ 4-bit serving on vLLM; add confidence intervals over several seeds; run PubMedQA; re-run the throughput benchmark with CUDA graphs enabled.
+
+## 12. Glossary
+
+| Term | Meaning |
+|---|---|
+| Open-weight model | A model whose weights you can download and run yourself |
+| Fine-tuning | Further training a model on examples of your task |
+| LoRA | A cheap fine-tuning method that trains a small add-on instead of the whole model |
+| Quantization | Storing weights in fewer bits (for example 4-bit) to shrink the model |
+| GGUF | A file format for quantized models, used by llama.cpp and Ollama |
+| ROUGE | Measures word overlap between a generated and a reference summary |
+| BERTScore | Measures meaning similarity between two texts using a language model |
+| P50 / P95 latency | Time within which 50% / 95% of requests finish |
+| Throughput | How much output the system produces per second |
+| vLLM | A fast serving engine for large language models |
+| Crossover | The monthly call volume where self-hosting becomes cheaper than the API |
+
+## Credits
+
+BillSum dataset: Kornilova and Eidelman (2019), "BillSum: A Corpus for Automatic Summarization of US Legislation". Built with Unsloth, Hugging Face PEFT, vLLM, llama.cpp, Ollama, FastAPI and Arize Phoenix.
 """
 open("README.md","w").write(md); print("README.md written,",len(md),"chars")
