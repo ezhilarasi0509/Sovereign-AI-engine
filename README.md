@@ -1,3 +1,5 @@
+> **Correction in progress:** the 2-shot Gemini row and its related numbers below came from a run whose prompt contained no examples (the example-selection filter matched no training bills), so it is effectively a second zero-shot sample. It is being re-run and those numbers are not valid yet. All other results are unaffected.
+
 # Sovereign AI Engine: summarizing US legislation with a model you run yourself
 
 > **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, produced better bill summaries than a low-cost API baseline (Gemini 3.1 Flash-Lite) on this task, and above roughly **472,705 calls per month** it is also cheaper to run yourself.

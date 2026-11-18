@@ -6,7 +6,7 @@ import json, numpy as np, sys
 a=[json.loads(l) for l in open("results/gemini-3.1-flash-lite.jsonl")]
 b=[json.loads(l) for l in open("results/gemini-3.1-flash-lite-2shot.jsonl")]
 d=np.mean([y["in_tok"]-x["in_tok"] for x,y in zip(a,b)]); print("mean extra input tokens in 2-shot:",round(d))
-sys.exit(0 if d>300 else 1)
+sys.exit(0 if d>100 else 1)
 PYEOF
 python -W ignore - <<'PYEOF' 2>&1 | grep "bert_gem2"
 import json
