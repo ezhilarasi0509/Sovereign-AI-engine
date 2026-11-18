@@ -15,7 +15,7 @@ import os
 if os.path.exists("results/gemini-3.1-flash-lite-2shot.jsonl"):
     g2=[json.loads(l) for l in open("results/gemini-3.1-flash-lite-2shot.jsonl")]
     a2=1000*(np.mean([r["in_tok"] for r in g2])*IN_P+np.mean([r["out_tok"] for r in g2])*OUT_P)/1e6
-    md=md.rstrip("\n")+"\n"+f"- If the 2-shot prompt is used (more input tokens), the API cost is ${a2:.3f} per 1,000 calls and the crossover at $0.50/hr falls to about {0.5*HRS/a2*1000:,.0f} calls/month.\n\n"
+    md=md.rstrip("\n")+"\n"+f"- With the 2-shot prompt the measured API cost is ${a2:.3f} per 1,000 calls and the crossover at $0.50/hr is about {0.5*HRS/a2*1000:,.0f} calls/month.\n\n"
 open("results/cost_sens.md","w").write(md); print(md)
 s=open("README.md").read()
 if "### 4.8" not in s and "## 5. Which option should you pick?" in s:

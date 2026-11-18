@@ -4,7 +4,9 @@ from google import genai
 from prompt import load
 M="gemini-3.1-flash-lite"
 train=[json.loads(l) for l in open("data/train.jsonl")]
-shots=[r for r in train if len(r["text"])<3500][:2]
+shots=sorted(train,key=lambda r:len(r["text"]))[:2]
+assert len(shots)==2 and all(len(s["text"])>200 for s in shots)
+print("shot sizes",[(len(s["text"]),len(s["summary"])) for s in shots],flush=True)
 HDR=("Summarize the following US congressional bill in a clear, factual legislative summary of at most 200 words. "
      "Output only the summary. Two examples of the expected style follow.\n\n")
 EX="".join(f"BILL:\n{s['text']}\n\nSUMMARY:\n{s['summary']}\n\n" for s in shots)

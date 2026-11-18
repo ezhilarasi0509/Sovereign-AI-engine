@@ -224,6 +224,7 @@ Training, merging and the vLLM benchmark need a GPU (a free Kaggle or Colab T4 w
 - ROUGE and BERTScore reward matching the reference summary style, not necessarily factual correctness.
 - Gemini was also graded by a Gemini judge, and a first lenient judging pass was discarded for scoring itself 5.0 out of 5.0.
 - Latencies across systems are not comparable (Mac and Ollama, T4 and vLLM, network API).
+- The Gemini runs used the API's default sampling settings, while the local models used temperature 0.
 - The GPU price is an assumption, and the API price is the list rate at the time of writing, without batch or cache discounts.
 - 4-bit quantization inside vLLM (AWQ or GPTQ) was not tested, because `bitsandbytes` is not supported in the vLLM version used.
 - PubMedQA, the harder variant in the original brief, was not run.

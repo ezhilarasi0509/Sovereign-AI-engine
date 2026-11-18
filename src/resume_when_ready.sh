@@ -9,4 +9,4 @@ PY
   echo "quota not back $(date)"; sleep 600
 done
 python -W ignore -u src/run_gemini_fewshot.py
-bash src/integrate_2shot.sh
+bash src/finish_2shot.sh
