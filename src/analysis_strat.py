@@ -15,6 +15,7 @@ md="### 4.9 Where does it win or lose?\n\nROUGE-L by source bill length (quartil
 md+="| System | "+" | ".join(heads)+" |\n|---|---|---|---|---|\n"
 for k in P: md+=f"| {k} | "+" | ".join(f"{rl[k][bins==i].mean():.3f}" for i in range(4))+" |\n"
 ft,g2=rl["Fine-tuned 16-bit"],rl["Gemini 2-shot"]
+md+="\nWith about 50 bills per bin, differences between bins are indicative only and were not tested.\n"
 md+=f"\nPer-bill comparison, fine-tuned 16-bit against 2-shot Gemini: the fine-tuned model scores higher on {(ft>g2).mean()*100:.0f}% of bills, lower on {(ft<g2).mean()*100:.0f}%. "
 md+="Averages hide variation, so see [docs/examples.md](docs/examples.md) for the three bills where the fine-tuned model gains most and the three where it loses most.\n\n"
 d=ft-g2; order=np.argsort(d); sel=[("Largest gains for the fine-tuned model",order[::-1][:3]),("Largest losses for the fine-tuned model",order[:3])]

@@ -216,6 +216,8 @@ ROUGE-L by source bill length (quartiles of bill characters, about 50 bills each
 | Fine-tuned 16-bit | 0.426 | 0.428 | 0.412 | 0.370 |
 | Fine-tuned Q4_K_M | 0.425 | 0.415 | 0.388 | 0.372 |
 
+With about 50 bills per bin, differences between bins are indicative only and were not tested.
+
 Per-bill comparison, fine-tuned 16-bit against 2-shot Gemini: the fine-tuned model scores higher on 54% of bills, lower on 46%. Averages hide variation, so see [docs/examples.md](docs/examples.md) for the three bills where the fine-tuned model gains most and the three where it loses most.
 
 ## 5. Which option should you pick?
