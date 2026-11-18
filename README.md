@@ -76,7 +76,7 @@ An LLM-judge pass is not included. A first attempt with a lenient rubric and Gem
 | Q8_0 | 3.1 GB | not evaluated | not evaluated | Built and uploaded, not scored |
 | Q4_K_M | 1.8 GB | 0.529 | 0.400 | Keeps 98.7% of fp16 ROUGE-1 at 31% of the size |
 
-Quantizing to 4-bit lost 0.007 ROUGE-1 and 0.009 ROUGE-L, and the 4-bit model still beat both baselines. For a laptop or edge deployment that trade is usually worth it.
+Quantizing to 4-bit lost 0.007 ROUGE-1 and 0.009 ROUGE-L, and the 4-bit model still beat both baselines. A paired bootstrap (section 4.7) shows this gap is within noise, so the quality cost of Q4_K_M is not statistically distinguishable from zero on 200 bills. For a laptop or edge deployment that trade is usually worth it.
 
 ### 4.4 Serving benchmark (fine-tuned 16-bit, vLLM, Kaggle T4)
 
@@ -116,6 +116,65 @@ These come from different hardware and software stacks (a Mac with Ollama, a T4 
 ![Monthly cost: API versus self-hosted](results/crossover.png)
 
 Below the crossover the API is cheaper because you pay nothing when idle. Above it, a busy GPU wins. The GPU price is an assumption: change it with `python src/cost.py YOUR_PRICE`.
+
+### 4.7 Statistical checks
+
+**Bootstrap 95% confidence intervals** (200 bills, 3,000 resamples):
+
+| System | ROUGE-1 | ROUGE-2 | ROUGE-L |
+|---|---|---|---|
+| Base Qwen2.5-3B | 0.492 [0.478, 0.505] | 0.237 [0.228, 0.248] | 0.319 [0.309, 0.329] |
+| Gemini 3.1 Flash-Lite | 0.502 [0.489, 0.515] | 0.228 [0.219, 0.237] | 0.320 [0.310, 0.329] |
+| Fine-tuned 16-bit | 0.536 [0.516, 0.556] | 0.342 [0.322, 0.363] | 0.409 [0.389, 0.429] |
+| Fine-tuned Q4_K_M | 0.529 [0.510, 0.549] | 0.328 [0.309, 0.347] | 0.400 [0.381, 0.420] |
+
+**Paired differences in ROUGE-L** (same bills, bootstrap):
+
+| Comparison | Mean difference | 95% CI | Verdict |
+|---|---|---|---|
+| Fine-tuned 16-bit minus Gemini 3.1 Flash-Lite | +0.089 | [+0.071, +0.109] | significant |
+| Fine-tuned 16-bit minus Base Qwen2.5-3B | +0.090 | [+0.071, +0.109] | significant |
+| Fine-tuned 16-bit minus Fine-tuned Q4_K_M | +0.009 | [-0.009, +0.027] | not significant |
+
+The fine-tuned model's lead over Gemini and the base model is statistically supported. The 16-bit versus Q4_K_M gap is not distinguishable from noise on 200 bills.
+
+**Length control.** Output caps differed: the 16-bit and Q4 runs were capped at 300 tokens, while base Qwen and Gemini had no cap. The share of outputs that hit 299 or more tokens, plus a rescoring with every output cut to its first 200 words (the length the prompt asked for):
+
+| System | Hit 300-token cap | Avg words (reference 151) | ROUGE-L, full output | ROUGE-L, first 200 words |
+|---|---|---|---|---|
+| Base Qwen2.5-3B | 9.5% | 152 | 0.319 | 0.318 |
+| Gemini 3.1 Flash-Lite | 0.0% | 167 | 0.320 | 0.320 |
+| Fine-tuned 16-bit | 29.5% | 171 | 0.409 | 0.411 |
+| Fine-tuned Q4_K_M | 20.0% | 144 | 0.400 | 0.400 |
+
+After the 200-word cut, fine-tuned minus Gemini is +0.092 ROUGE-L [+0.074, +0.110], significant.
+
+**Numbers not found in the bill.** A crude grounding check: every number in a summary (2 or more characters) is searched for in the source bill. Misses include legitimate rewrites such as totals or spelled-out numbers, so only compare systems with each other.
+
+| System | Numbers checked | Not in bill | Rate (95% Wilson CI) |
+|---|---|---|---|
+| Base Qwen2.5-3B | 738 | 24 | 3.3% [2.2%, 4.8%] |
+| Gemini 3.1 Flash-Lite | 718 | 22 | 3.1% [2.0%, 4.6%] |
+| Fine-tuned 16-bit | 523 | 28 | 5.4% [3.7%, 7.6%] |
+| Fine-tuned Q4_K_M | 486 | 16 | 3.3% [2.0%, 5.3%] |
+
+Fine-tuning improved style and overlap but showed no evidence of better factual grounding on this check: the 16-bit model had the highest rate of unmatched numbers, though its interval overlaps the others, so this is suggestive rather than conclusive. Verify facts before using any summary in a legal setting.
+
+### 4.8 Cost sensitivity
+
+The GPU price and how busy the GPU is both change the answer. Self-hosted cost per 1,000 calls (using the measured 0.59 requests/s at concurrency 32), against an API cost of $0.772 per 1,000 calls:
+
+| GPU $/hr | 100% busy | 50% busy | 25% busy | 10% busy | Crossover (calls/month) |
+|---|---|---|---|---|---|
+| $0.25 | $0.12 | $0.24 | $0.47 | $1.18 | 236,352 |
+| $0.35 | $0.16 | $0.33 | $0.66 | $1.65 | 330,893 |
+| $0.50 | $0.24 | $0.47 | $0.94 | $2.35 | 472,705 |
+| $0.75 | $0.35 | $0.71 | $1.41 | $3.53 | 709,057 |
+| $1.00 | $0.47 | $0.94 | $1.88 | $4.71 | 945,409 |
+
+- A GPU that is only 10% busy costs more per call than the API at every price above. Self-hosting needs steady volume.
+- With the API's 50% batch discount ($0.386 per 1,000 calls) the crossover at $0.50/hr doubles to about 945,409 calls/month.
+- Prices are assumptions, not quotes. Check current GPU and API rates before deciding.
 
 ## 5. Which option should you pick?
 
@@ -178,7 +237,7 @@ Training, merging and the vLLM benchmark need a GPU (a free Kaggle or Colab T4 w
 
 ## 10. Limitations (read before trusting the numbers)
 
-- One run per system on 200 bills, with no confidence intervals and no repeated seeds.
+- One run per system on 200 bills, with bootstrap confidence intervals (section 4.7) but no repeated training seeds. Generation caps differed: the 16-bit and Q4 outputs were capped at 300 tokens while base Qwen and Gemini had no cap, and 29.5% of the 16-bit outputs hit that cap.
 - ROUGE and BERTScore reward matching the reference summary style, not necessarily factual correctness.
 - Gemini was also graded by a Gemini judge, and a first lenient judging pass was discarded for scoring itself 5.0 out of 5.0.
 - Latencies across systems are not comparable (Mac and Ollama, T4 and vLLM, network API).

@@ -109,7 +109,7 @@ flowchart LR
 | Q8_0 | 3.1 GB | not evaluated | not evaluated | Built and uploaded, not scored |
 | Q4_K_M | 1.8 GB | {q4[0]:.3f} | {q4[2]:.3f} | Keeps {keep:.1f}% of fp16 ROUGE-1 at 31% of the size |
 
-Quantizing to 4-bit lost {ft[0]-q4[0]:.3f} ROUGE-1 and {ft[2]-q4[2]:.3f} ROUGE-L, and the 4-bit model still beat both baselines. For a laptop or edge deployment that trade is usually worth it.
+Quantizing to 4-bit lost {ft[0]-q4[0]:.3f} ROUGE-1 and {ft[2]-q4[2]:.3f} ROUGE-L, and the 4-bit model still beat both baselines. A paired bootstrap (section 4.7) shows this gap is within noise, so the quality cost of Q4_K_M is not statistically distinguishable from zero on 200 bills. For a laptop or edge deployment that trade is usually worth it.
 
 ### 4.4 Serving benchmark (fine-tuned 16-bit, vLLM, Kaggle T4)
 
@@ -204,7 +204,7 @@ Training, merging and the vLLM benchmark need a GPU (a free Kaggle or Colab T4 w
 
 ## 10. Limitations (read before trusting the numbers)
 
-- One run per system on 200 bills, with no confidence intervals and no repeated seeds.
+- One run per system on 200 bills, with bootstrap confidence intervals (section 4.7) but no repeated training seeds. Generation caps differed: the 16-bit and Q4 outputs were capped at 300 tokens while base Qwen and Gemini had no cap, and 29.5% of the 16-bit outputs hit that cap.
 - ROUGE and BERTScore reward matching the reference summary style, not necessarily factual correctness.
 - Gemini was also graded by a Gemini judge, and a first lenient judging pass was discarded for scoring itself 5.0 out of 5.0.
 - Latencies across systems are not comparable (Mac and Ollama, T4 and vLLM, network API).
