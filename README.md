@@ -103,6 +103,15 @@ Quantizing to 4-bit lost 0.007 ROUGE-1 and 0.009 ROUGE-L, and the 4-bit model st
 
 These come from different hardware and software stacks (a Mac with Ollama, a T4 with vLLM, a network API), so do not rank the systems by this table. Use section 4.4 for serving claims.
 
+### 4.5b Same-hardware speed: Q4_K_M versus Q8_0 (idle MacBook M4, Ollama)
+
+| Model | Requests | P50 (s) | P95 (s) | Output tokens/s |
+|---|---|---|---|---|
+| Q8_0 | 58 | 14.15 | 23.2 | 12.3 |
+| Q4_K_M | 58 | 10.38 | 18.34 | 15.8 |
+
+Both models ran alternately on an otherwise idle machine, 29 bills per round, 2 rounds, 300-token cap.
+
 ### 4.6 Cost and the crossover point
 
 | Item | Value |
