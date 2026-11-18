@@ -9,8 +9,10 @@ def rouge(rows):
 def lat(rows):
     l=[r["latency"] for r in rows]; return np.percentile(l,50),np.percentile(l,95)
 BQ8=json.load(open("results/bert_q8.json"))["f1"]
+BG2=json.load(open("results/bert_gem2.json"))["f1"]
 SYS=[("base","Base Qwen2.5-3B-Instruct","Ollama on MacBook M4","results/qwen2.5_3b.jsonl",0.813),
-     ("gem","Gemini 3.1 Flash-Lite","Google API (frontier baseline)","results/gemini-3.1-flash-lite.jsonl",0.820),
+     ("gem","Gemini 3.1 Flash-Lite, zero-shot","Google API","results/gemini-3.1-flash-lite.jsonl",0.820),
+     ("gem2","Gemini 3.1 Flash-Lite, 2-shot","Google API (2 example pairs in the prompt)","results/gemini-3.1-flash-lite-2shot.jsonl",BG2),
      ("ft","Fine-tuned Qwen2.5-3B, 16-bit","vLLM on Kaggle T4 (concurrency 8)","results/vllm_16bit_c8.jsonl",0.852),
      ("q8","Fine-tuned Qwen2.5-3B, Q8_0","Ollama on MacBook M4","results/billsum-q8.jsonl",BQ8),
      ("q4","Fine-tuned Qwen2.5-3B, Q4_K_M","Ollama on MacBook M4","results/billsum-q4b.jsonl",0.846)]
@@ -28,8 +30,8 @@ c8=GPU_HR/(v["8"]["req_per_s"]*3600)*1000; c32=GPU_HR/(v["32"]["req_per_s"]*3600
 cap32=v["32"]["req_per_s"]*3600*HRS
 r2gain=(ft[1]-base[1])/base[1]*100
 keep=q4[0]/ft[0]*100
-qual="".join(f"| {D[k][0]} | {D[k][1]} | {R[k][0]:.3f} | {R[k][1]:.3f} | {R[k][2]:.3f} | {D[k][3]:.3f} |\n" for k in ["base","gem","ft","q8","q4"])
-latt="".join(f"| {D[k][0]} | {D[k][1]} | {L[k][0]:.1f} | {L[k][1]:.1f} |\n" for k in ["base","gem","ft","q8","q4"])
+qual="".join(f"| {D[k][0]} | {D[k][1]} | {R[k][0]:.3f} | {R[k][1]:.3f} | {R[k][2]:.3f} | {D[k][3]:.3f} |\n" for k in ["base","gem","gem2","ft","q8","q4"])
+latt="".join(f"| {D[k][0]} | {D[k][1]} | {L[k][0]:.1f} | {L[k][1]:.1f} |\n" for k in ["base","gem","gem2","ft","q8","q4"])
 bench="".join(f"| {c} | {v[c]['p50']} | {v[c]['p95']} | {v[c]['tok_per_s']} | {v[c]['req_per_s']} |\n" for c in ["1","8","32"])
 if os.path.exists("results/judge_strong.json"):
     j=json.load(open("results/judge_strong.json"))
@@ -48,7 +50,7 @@ if os.path.exists("results/speed_mac.json"):
     spd+="\nBoth models ran alternately on an otherwise idle machine, 29 bills per round, 2 rounds, 300-token cap.\n\n"
 md=f"""# Sovereign AI Engine: summarizing US legislation with a model you run yourself
 
-> **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, produced better bill summaries than a frontier API baseline on this task, and above roughly **{cross:,.0f} calls per month** it is also cheaper to run yourself.
+> **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, produced better bill summaries than a low-cost API baseline (Gemini 3.1 Flash-Lite) on this task, and above roughly **{cross:,.0f} calls per month** it is also cheaper to run yourself.
 >
 > **Licensing note:** the base model (Qwen2.5-3B-Instruct) is released under the Qwen Research License, which allows non-commercial use only. See section 13.
 
@@ -58,7 +60,7 @@ Many organizations (hospitals, banks, courts, governments) want AI to read long 
 
 | Question | How this project answers it |
 |---|---|
-| Is a small open model good enough? | Baselined a 3B open model against a frontier API on 200 unseen bills. |
+| Is a small open model good enough? | Baselined a 3B open model against a low-cost API model on 200 unseen bills. |
 | Is fine-tuning worth it? | Measured quality before and after LoRA fine-tuning on 1,500 bills. |
 | What does making the model smaller cost? | Compared 16-bit against 4-bit (Q4_K_M) for size and quality. |
 | Can it serve real traffic? | Benchmarked P50 and P95 latency and throughput on vLLM at 1, 8 and 32 concurrent requests. |
@@ -79,7 +81,8 @@ Many organizations (hospitals, banks, courts, governments) want AI to read long 
 | System | Where it runs | Role |
 |---|---|---|
 | Base Qwen2.5-3B-Instruct | Ollama, MacBook M4 | Small open model, no training |
-| Gemini 3.1 Flash-Lite | Google API | Frontier API baseline |
+| Gemini 3.1 Flash-Lite, zero-shot | Google API | Low-cost API baseline |
+| Gemini 3.1 Flash-Lite, 2-shot | Google API | Same model with two example bill and summary pairs in the prompt |
 | Fine-tuned Qwen2.5-3B, 16-bit | vLLM, Kaggle T4 GPU | The sovereign model at full precision |
 | Fine-tuned Qwen2.5-3B, Q4_K_M | Ollama, MacBook M4 | The same model shrunk to 4-bit |
 
@@ -108,7 +111,8 @@ flowchart LR
 
 **What this shows**
 - Fine-tuning raised ROUGE-2 from {base[1]:.3f} to {ft[1]:.3f} (about {r2gain:.0f}% relative) and ROUGE-L from {base[2]:.3f} to {ft[2]:.3f}.
-- The fine-tuned model beat the Gemini 3.1 Flash-Lite API baseline on every ROUGE metric and on BERTScore.
+- The fine-tuned model beat the zero-shot Gemini 3.1 Flash-Lite baseline on every ROUGE metric and on BERTScore.
+- Giving Gemini two example bill and summary pairs in the prompt (2-shot) moved its ROUGE-L from {gem[2]:.3f} to {R["gem2"][2]:.3f}, against {ft[2]:.3f} for the fine-tuned 16-bit model. The fine-tuned model is {"still ahead" if ft[2]>R["gem2"][2] else "not ahead"} on ROUGE-L; section 4.7 gives the confidence interval.
 - The gain comes largely from learning the legislative summary style and length, which the BillSum references share. A general-purpose API model is not trained for that style.
 
 ### 4.2 LLM-judge check
@@ -159,7 +163,7 @@ Below the crossover the API is cheaper because you pay nothing when idle. Above 
 
 | Your situation | Suggested option |
 |---|---|
-| Low or unpredictable volume, data may leave your network | Frontier API |
+| Low or unpredictable volume, data may leave your network | Hosted API |
 | Documents cannot leave your infrastructure (regulated or private data) | Self-host, even below the crossover |
 | Steady volume above about {cross/30:,.0f} calls per day | Self-host the fine-tuned 16-bit model on a GPU |
 | Laptop, edge or small server | Fine-tuned Q4_K_M, a small quality loss for a 3x smaller file |

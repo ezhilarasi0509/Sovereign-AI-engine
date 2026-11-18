@@ -1,6 +1,6 @@
 # Sovereign AI Engine: summarizing US legislation with a model you run yourself
 
-> **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, produced better bill summaries than a frontier API baseline on this task, and above roughly **472,705 calls per month** it is also cheaper to run yourself.
+> **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, produced better bill summaries than a low-cost API baseline (Gemini 3.1 Flash-Lite) on this task, and above roughly **472,705 calls per month** it is also cheaper to run yourself.
 >
 > **Licensing note:** the base model (Qwen2.5-3B-Instruct) is released under the Qwen Research License, which allows non-commercial use only. See section 13.
 
@@ -10,7 +10,7 @@ Many organizations (hospitals, banks, courts, governments) want AI to read long 
 
 | Question | How this project answers it |
 |---|---|
-| Is a small open model good enough? | Baselined a 3B open model against a frontier API on 200 unseen bills. |
+| Is a small open model good enough? | Baselined a 3B open model against a low-cost API model on 200 unseen bills. |
 | Is fine-tuning worth it? | Measured quality before and after LoRA fine-tuning on 1,500 bills. |
 | What does making the model smaller cost? | Compared 16-bit against 4-bit (Q4_K_M) for size and quality. |
 | Can it serve real traffic? | Benchmarked P50 and P95 latency and throughput on vLLM at 1, 8 and 32 concurrent requests. |
@@ -31,7 +31,8 @@ Many organizations (hospitals, banks, courts, governments) want AI to read long 
 | System | Where it runs | Role |
 |---|---|---|
 | Base Qwen2.5-3B-Instruct | Ollama, MacBook M4 | Small open model, no training |
-| Gemini 3.1 Flash-Lite | Google API | Frontier API baseline |
+| Gemini 3.1 Flash-Lite, zero-shot | Google API | Low-cost API baseline |
+| Gemini 3.1 Flash-Lite, 2-shot | Google API | Same model with two example bill and summary pairs in the prompt |
 | Fine-tuned Qwen2.5-3B, 16-bit | vLLM, Kaggle T4 GPU | The sovereign model at full precision |
 | Fine-tuned Qwen2.5-3B, Q4_K_M | Ollama, MacBook M4 | The same model shrunk to 4-bit |
 
@@ -56,7 +57,8 @@ flowchart LR
 | System | Runs on | ROUGE-1 | ROUGE-2 | ROUGE-L | BERTScore F1* |
 |---|---|---|---|---|---|
 | Base Qwen2.5-3B-Instruct | Ollama on MacBook M4 | 0.492 | 0.237 | 0.319 | 0.813 |
-| Gemini 3.1 Flash-Lite | Google API (frontier baseline) | 0.502 | 0.228 | 0.320 | 0.820 |
+| Gemini 3.1 Flash-Lite, zero-shot | Google API | 0.502 | 0.228 | 0.320 | 0.820 |
+| Gemini 3.1 Flash-Lite, 2-shot | Google API (2 example pairs in the prompt) | 0.509 | 0.240 | 0.331 | 0.827 |
 | Fine-tuned Qwen2.5-3B, 16-bit | vLLM on Kaggle T4 (concurrency 8) | 0.536 | 0.342 | 0.409 | 0.852 |
 | Fine-tuned Qwen2.5-3B, Q8_0 | Ollama on MacBook M4 | 0.559 | 0.356 | 0.423 | 0.854 |
 | Fine-tuned Qwen2.5-3B, Q4_K_M | Ollama on MacBook M4 | 0.529 | 0.328 | 0.400 | 0.846 |
@@ -65,7 +67,8 @@ flowchart LR
 
 **What this shows**
 - Fine-tuning raised ROUGE-2 from 0.237 to 0.342 (about 44% relative) and ROUGE-L from 0.319 to 0.409.
-- The fine-tuned model beat the Gemini 3.1 Flash-Lite API baseline on every ROUGE metric and on BERTScore.
+- The fine-tuned model beat the zero-shot Gemini 3.1 Flash-Lite baseline on every ROUGE metric and on BERTScore.
+- Giving Gemini two example bill and summary pairs in the prompt (2-shot) moved its ROUGE-L from 0.320 to 0.331, against 0.409 for the fine-tuned 16-bit model. The fine-tuned model is still ahead on ROUGE-L; section 4.7 gives the confidence interval.
 - The gain comes largely from learning the legislative summary style and length, which the BillSum references share. A general-purpose API model is not trained for that style.
 
 ### 4.2 LLM-judge check
@@ -98,7 +101,8 @@ Quantizing to 4-bit lost 0.007 ROUGE-1 and 0.009 ROUGE-L, and the 4-bit model st
 | System | Runs on | P50 (s) | P95 (s) |
 |---|---|---|---|
 | Base Qwen2.5-3B-Instruct | Ollama on MacBook M4 | 15.2 | 25.2 |
-| Gemini 3.1 Flash-Lite | Google API (frontier baseline) | 3.2 | 7.5 |
+| Gemini 3.1 Flash-Lite, zero-shot | Google API | 3.2 | 7.5 |
+| Gemini 3.1 Flash-Lite, 2-shot | Google API (2 example pairs in the prompt) | 2.1 | 6.3 |
 | Fine-tuned Qwen2.5-3B, 16-bit | vLLM on Kaggle T4 (concurrency 8) | 15.7 | 26.5 |
 | Fine-tuned Qwen2.5-3B, Q8_0 | Ollama on MacBook M4 | 17.0 | 26.0 |
 | Fine-tuned Qwen2.5-3B, Q4_K_M | Ollama on MacBook M4 | 15.0 | 36.6 |
@@ -137,41 +141,45 @@ Below the crossover the API is cheaper because you pay nothing when idle. Above 
 | System | ROUGE-1 | ROUGE-2 | ROUGE-L |
 |---|---|---|---|
 | Base Qwen2.5-3B | 0.492 [0.478, 0.505] | 0.237 [0.228, 0.248] | 0.319 [0.309, 0.329] |
-| Gemini 3.1 Flash-Lite | 0.502 [0.489, 0.515] | 0.228 [0.219, 0.237] | 0.320 [0.310, 0.329] |
-| Fine-tuned 16-bit | 0.536 [0.516, 0.556] | 0.342 [0.322, 0.363] | 0.409 [0.389, 0.429] |
-| Fine-tuned Q8_0 | 0.559 [0.540, 0.580] | 0.356 [0.336, 0.376] | 0.423 [0.403, 0.444] |
-| Fine-tuned Q4_K_M | 0.529 [0.510, 0.548] | 0.328 [0.308, 0.348] | 0.400 [0.380, 0.419] |
+| Gemini 3.1 Flash-Lite (zero-shot) | 0.502 [0.489, 0.515] | 0.228 [0.219, 0.237] | 0.320 [0.310, 0.329] |
+| Gemini 3.1 Flash-Lite (2-shot) | 0.509 [0.496, 0.522] | 0.240 [0.231, 0.249] | 0.331 [0.321, 0.342] |
+| Fine-tuned 16-bit | 0.536 [0.516, 0.558] | 0.342 [0.322, 0.362] | 0.409 [0.389, 0.429] |
+| Fine-tuned Q8_0 | 0.559 [0.539, 0.579] | 0.356 [0.336, 0.377] | 0.423 [0.403, 0.443] |
+| Fine-tuned Q4_K_M | 0.529 [0.509, 0.549] | 0.328 [0.308, 0.348] | 0.400 [0.381, 0.420] |
 
 **Paired differences in ROUGE-L** (same bills, bootstrap):
 
 | Comparison | Mean difference | 95% CI | Verdict |
 |---|---|---|---|
-| Fine-tuned 16-bit minus Gemini 3.1 Flash-Lite | +0.089 | [+0.071, +0.108] | significant |
+| Fine-tuned 16-bit minus Gemini 3.1 Flash-Lite (zero-shot) | +0.089 | [+0.071, +0.108] | significant |
+| Fine-tuned 16-bit minus Gemini 3.1 Flash-Lite (2-shot) | +0.078 | [+0.060, +0.095] | significant |
 | Fine-tuned 16-bit minus Base Qwen2.5-3B | +0.090 | [+0.071, +0.109] | significant |
 | Fine-tuned 16-bit minus Fine-tuned Q4_K_M | +0.009 | [-0.009, +0.027] | not significant |
 | Fine-tuned Q8_0 minus Fine-tuned 16-bit | +0.014 | [-0.001, +0.029] | not significant |
-| Fine-tuned Q8_0 minus Fine-tuned Q4_K_M | +0.023 | [+0.009, +0.037] | significant |
+| Fine-tuned Q8_0 minus Fine-tuned Q4_K_M | +0.023 | [+0.008, +0.037] | significant |
 
-The fine-tuned model's lead over Gemini and the base model is statistically supported. The 16-bit versus Q4_K_M gap is not distinguishable from noise on 200 bills.
+A confidence interval that includes zero means the difference is not distinguishable from noise on 200 bills. Read each row accordingly.
 
 **Length control.** Output caps differed: the 16-bit and Q4 runs were capped at 300 tokens, while base Qwen and Gemini had no cap. The share of outputs that hit 299 or more tokens, plus a rescoring with every output cut to its first 200 words (the length the prompt asked for):
 
 | System | Hit 300-token cap | Avg words (reference 151) | ROUGE-L, full output | ROUGE-L, first 200 words |
 |---|---|---|---|---|
 | Base Qwen2.5-3B | 9.5% | 152 | 0.319 | 0.318 |
-| Gemini 3.1 Flash-Lite | 0.0% | 167 | 0.320 | 0.320 |
+| Gemini 3.1 Flash-Lite (zero-shot) | 0.0% | 167 | 0.320 | 0.320 |
+| Gemini 3.1 Flash-Lite (2-shot) | 0.0% | 164 | 0.331 | 0.331 |
 | Fine-tuned 16-bit | 29.5% | 171 | 0.409 | 0.411 |
 | Fine-tuned Q8_0 | 24.5% | 154 | 0.423 | 0.423 |
 | Fine-tuned Q4_K_M | 20.0% | 144 | 0.400 | 0.400 |
 
-After the 200-word cut, fine-tuned minus Gemini is +0.092 ROUGE-L [+0.074, +0.110], significant.
+After the 200-word cut, fine-tuned minus zero-shot Gemini is +0.092 ROUGE-L [+0.074, +0.110], significant.
 
 **Numbers not found in the bill.** A crude grounding check: every number in a summary (2 or more characters) is searched for in the source bill. Misses include legitimate rewrites such as totals or spelled-out numbers, so only compare systems with each other.
 
 | System | Numbers checked | Not in bill | Rate (95% Wilson CI) |
 |---|---|---|---|
 | Base Qwen2.5-3B | 738 | 24 | 3.3% [2.2%, 4.8%] |
-| Gemini 3.1 Flash-Lite | 718 | 22 | 3.1% [2.0%, 4.6%] |
+| Gemini 3.1 Flash-Lite (zero-shot) | 718 | 22 | 3.1% [2.0%, 4.6%] |
+| Gemini 3.1 Flash-Lite (2-shot) | 685 | 22 | 3.2% [2.1%, 4.8%] |
 | Fine-tuned 16-bit | 523 | 28 | 5.4% [3.7%, 7.6%] |
 | Fine-tuned Q8_0 | 541 | 16 | 3.0% [1.8%, 4.7%] |
 | Fine-tuned Q4_K_M | 486 | 16 | 3.3% [2.0%, 5.3%] |
@@ -193,12 +201,13 @@ The GPU price and how busy the GPU is both change the answer. Self-hosted cost p
 - A GPU that is only 10% busy costs more per call than the API at every price above. Self-hosting needs steady volume.
 - With the API's 50% batch discount ($0.386 per 1,000 calls) the crossover at $0.50/hr doubles to about 945,409 calls/month.
 - Prices are assumptions, not quotes. Check current GPU and API rates before deciding.
+- If the 2-shot prompt is used (more input tokens), the API cost is $0.761 per 1,000 calls and the crossover at $0.50/hr falls to about 479,405 calls/month.
 
 ## 5. Which option should you pick?
 
 | Your situation | Suggested option |
 |---|---|
-| Low or unpredictable volume, data may leave your network | Frontier API |
+| Low or unpredictable volume, data may leave your network | Hosted API |
 | Documents cannot leave your infrastructure (regulated or private data) | Self-host, even below the crossover |
 | Steady volume above about 15,757 calls per day | Self-host the fine-tuned 16-bit model on a GPU |
 | Laptop, edge or small server | Fine-tuned Q4_K_M, a small quality loss for a 3x smaller file |

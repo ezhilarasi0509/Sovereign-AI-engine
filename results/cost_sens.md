@@ -13,4 +13,5 @@ The GPU price and how busy the GPU is both change the answer. Self-hosted cost p
 - A GPU that is only 10% busy costs more per call than the API at every price above. Self-hosting needs steady volume.
 - With the API's 50% batch discount ($0.386 per 1,000 calls) the crossover at $0.50/hr doubles to about 945,409 calls/month.
 - Prices are assumptions, not quotes. Check current GPU and API rates before deciding.
+- If the 2-shot prompt is used (more input tokens), the API cost is $0.761 per 1,000 calls and the crossover at $0.50/hr falls to about 479,405 calls/month.
 

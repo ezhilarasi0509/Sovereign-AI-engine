@@ -3,8 +3,8 @@ from rouge_score import rouge_scorer
 S=rouge_scorer.RougeScorer(["rouge1","rouge2","rougeL"],use_stemmer=True)
 def load(p): return [json.loads(l) for l in open(p)]
 bills=[json.loads(l)["text"] for l in open("data/test.jsonl")][:200]
-N={"base":"Base Qwen2.5-3B","gemini":"Gemini 3.1 Flash-Lite","ft16":"Fine-tuned 16-bit","q8":"Fine-tuned Q8_0","q4":"Fine-tuned Q4_K_M"}
-P={"base":"results/qwen2.5_3b.jsonl","gemini":"results/gemini-3.1-flash-lite.jsonl","ft16":"results/vllm_16bit_c8.jsonl","q8":"results/billsum-q8.jsonl","q4":"results/billsum-q4b.jsonl"}
+N={"base":"Base Qwen2.5-3B","gemini":"Gemini 3.1 Flash-Lite (zero-shot)","gem2":"Gemini 3.1 Flash-Lite (2-shot)","ft16":"Fine-tuned 16-bit","q8":"Fine-tuned Q8_0","q4":"Fine-tuned Q4_K_M"}
+P={"base":"results/qwen2.5_3b.jsonl","gemini":"results/gemini-3.1-flash-lite.jsonl","gem2":"results/gemini-3.1-flash-lite-2shot.jsonl","ft16":"results/vllm_16bit_c8.jsonl","q8":"results/billsum-q8.jsonl","q4":"results/billsum-q4b.jsonl"}
 D={k:load(p) for k,p in P.items()}
 def per(rows,trunc=None):
     return np.array([[S.score(r["ref"]," ".join(r["pred"].split()[:trunc]) if trunc else r["pred"])[m].fmeasure
@@ -25,14 +25,14 @@ md+="**Bootstrap 95% confidence intervals** (200 bills, 3,000 resamples):\n\n| S
 for k in N:
     md+=f"| {N[k]} | "+" | ".join("%.3f [%.3f, %.3f]"%ci(full[k],c) for c in range(3))+" |\n"
 md+="\n**Paired differences in ROUGE-L** (same bills, bootstrap):\n\n| Comparison | Mean difference | 95% CI | Verdict |\n|---|---|---|---|\n"
-for a,b in [("ft16","gemini"),("ft16","base"),("ft16","q4"),("q8","ft16"),("q8","q4")]:
+for a,b in [("ft16","gemini"),("ft16","gem2"),("ft16","base"),("ft16","q4"),("q8","ft16"),("q8","q4")]:
     m,lo,hi,vd=pair(full[a],full[b]); md+=f"| {N[a]} minus {N[b]} | {m:+.3f} | [{lo:+.3f}, {hi:+.3f}] | {vd} |\n"
-md+="\nThe fine-tuned model's lead over Gemini and the base model is statistically supported. The 16-bit versus Q4_K_M gap is not distinguishable from noise on 200 bills.\n\n"
+md+="\nA confidence interval that includes zero means the difference is not distinguishable from noise on 200 bills. Read each row accordingly.\n\n"
 md+="**Length control.** Output caps differed: the 16-bit and Q4 runs were capped at 300 tokens, while base Qwen and Gemini had no cap. The share of outputs that hit 299 or more tokens, plus a rescoring with every output cut to its first 200 words (the length the prompt asked for):\n\n| System | Hit 300-token cap | Avg words (reference 151) | ROUGE-L, full output | ROUGE-L, first 200 words |\n|---|---|---|---|---|\n"
 for k in N:
     md+=f"| {N[k]} | {np.mean([r['out_tok']>=299 for r in D[k]])*100:.1f}% | {np.mean([len(r['pred'].split()) for r in D[k]]):.0f} | {full[k][:,2].mean():.3f} | {cut[k][:,2].mean():.3f} |\n"
 m,lo,hi,vd=pair(cut["ft16"],cut["gemini"])
-md+=f"\nAfter the 200-word cut, fine-tuned minus Gemini is {m:+.3f} ROUGE-L [{lo:+.3f}, {hi:+.3f}], {vd}.\n\n"
+md+=f"\nAfter the 200-word cut, fine-tuned minus zero-shot Gemini is {m:+.3f} ROUGE-L [{lo:+.3f}, {hi:+.3f}], {vd}.\n\n"
 md+="**Numbers not found in the bill.** A crude grounding check: every number in a summary (2 or more characters) is searched for in the source bill. Misses include legitimate rewrites such as totals or spelled-out numbers, so only compare systems with each other.\n\n| System | Numbers checked | Not in bill | Rate (95% Wilson CI) |\n|---|---|---|---|\n"
 num=re.compile(r"\$?\d[\d,]*\.?\d*")
 for k in N:
