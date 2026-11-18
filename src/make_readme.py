@@ -82,7 +82,7 @@ Many organizations (hospitals, banks, courts, governments) want AI to read long 
 |---|---|---|
 | Base Qwen2.5-3B-Instruct | Ollama, MacBook M4 | Small open model, no training |
 | Gemini 3.1 Flash-Lite, zero-shot | Google API | Low-cost API baseline |
-| Gemini 3.1 Flash-Lite, 2-shot | Google API | Same model with two example bill and summary pairs in the prompt |
+| Gemini 3.1 Flash-Lite, 2-shot | Google API | Same model with two example bill and summary pairs in the prompt (the two shortest training bills, so the prompt grows by about 2,800 tokens) |
 | Fine-tuned Qwen2.5-3B, 16-bit | vLLM, Kaggle T4 GPU | The sovereign model at full precision |
 | Fine-tuned Qwen2.5-3B, Q4_K_M | Ollama, MacBook M4 | The same model shrunk to 4-bit |
 

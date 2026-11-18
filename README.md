@@ -1,5 +1,3 @@
-> **Correction in progress:** the 2-shot Gemini row and its related numbers below came from a run whose prompt contained no examples (the example-selection filter matched no training bills), so it is effectively a second zero-shot sample. It is being re-run and those numbers are not valid yet. All other results are unaffected.
-
 # Sovereign AI Engine: summarizing US legislation with a model you run yourself
 
 > **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, produced better bill summaries than a low-cost API baseline (Gemini 3.1 Flash-Lite) on this task, and above roughly **472,705 calls per month** it is also cheaper to run yourself.
@@ -34,7 +32,7 @@ Many organizations (hospitals, banks, courts, governments) want AI to read long 
 |---|---|---|
 | Base Qwen2.5-3B-Instruct | Ollama, MacBook M4 | Small open model, no training |
 | Gemini 3.1 Flash-Lite, zero-shot | Google API | Low-cost API baseline |
-| Gemini 3.1 Flash-Lite, 2-shot | Google API | Same model with two example bill and summary pairs in the prompt |
+| Gemini 3.1 Flash-Lite, 2-shot | Google API | Same model with two example bill and summary pairs in the prompt (the two shortest training bills, so the prompt grows by about 2,800 tokens) |
 | Fine-tuned Qwen2.5-3B, 16-bit | vLLM, Kaggle T4 GPU | The sovereign model at full precision |
 | Fine-tuned Qwen2.5-3B, Q4_K_M | Ollama, MacBook M4 | The same model shrunk to 4-bit |
 
@@ -60,7 +58,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | Base Qwen2.5-3B-Instruct | Ollama on MacBook M4 | 0.492 | 0.237 | 0.319 | 0.813 |
 | Gemini 3.1 Flash-Lite, zero-shot | Google API | 0.502 | 0.228 | 0.320 | 0.820 |
-| Gemini 3.1 Flash-Lite, 2-shot | Google API (2 example pairs in the prompt) | 0.509 | 0.240 | 0.331 | 0.827 |
+| Gemini 3.1 Flash-Lite, 2-shot | Google API (2 example pairs in the prompt) | 0.539 | 0.285 | 0.375 | 0.841 |
 | Fine-tuned Qwen2.5-3B, 16-bit | vLLM on Kaggle T4 (concurrency 8) | 0.536 | 0.342 | 0.409 | 0.852 |
 | Fine-tuned Qwen2.5-3B, Q8_0 | Ollama on MacBook M4 | 0.559 | 0.356 | 0.423 | 0.854 |
 | Fine-tuned Qwen2.5-3B, Q4_K_M | Ollama on MacBook M4 | 0.529 | 0.328 | 0.400 | 0.846 |
@@ -70,7 +68,7 @@ flowchart LR
 **What this shows**
 - Fine-tuning raised ROUGE-2 from 0.237 to 0.342 (about 44% relative) and ROUGE-L from 0.319 to 0.409.
 - The fine-tuned model beat the zero-shot Gemini 3.1 Flash-Lite baseline on every ROUGE metric and on BERTScore.
-- Giving Gemini two example bill and summary pairs in the prompt (2-shot) moved its ROUGE-L from 0.320 to 0.331, against 0.409 for the fine-tuned 16-bit model. The fine-tuned model is still ahead on ROUGE-L; section 4.7 gives the confidence interval.
+- Giving Gemini two example bill and summary pairs in the prompt (2-shot) moved its ROUGE-L from 0.320 to 0.375, against 0.409 for the fine-tuned 16-bit model. The fine-tuned model is still ahead on ROUGE-L; section 4.7 gives the confidence interval.
 - The gain comes largely from learning the legislative summary style and length, which the BillSum references share. A general-purpose API model is not trained for that style.
 
 ### 4.2 LLM-judge check
@@ -104,7 +102,7 @@ Quantizing to 4-bit lost 0.007 ROUGE-1 and 0.009 ROUGE-L, and the 4-bit model st
 |---|---|---|---|
 | Base Qwen2.5-3B-Instruct | Ollama on MacBook M4 | 15.2 | 25.2 |
 | Gemini 3.1 Flash-Lite, zero-shot | Google API | 3.2 | 7.5 |
-| Gemini 3.1 Flash-Lite, 2-shot | Google API (2 example pairs in the prompt) | 2.1 | 6.3 |
+| Gemini 3.1 Flash-Lite, 2-shot | Google API (2 example pairs in the prompt) | 1.8 | 3.9 |
 | Fine-tuned Qwen2.5-3B, 16-bit | vLLM on Kaggle T4 (concurrency 8) | 15.7 | 26.5 |
 | Fine-tuned Qwen2.5-3B, Q8_0 | Ollama on MacBook M4 | 17.0 | 26.0 |
 | Fine-tuned Qwen2.5-3B, Q4_K_M | Ollama on MacBook M4 | 15.0 | 36.6 |
@@ -144,7 +142,7 @@ Below the crossover the API is cheaper because you pay nothing when idle. Above 
 |---|---|---|---|
 | Base Qwen2.5-3B | 0.492 [0.478, 0.505] | 0.237 [0.228, 0.248] | 0.319 [0.309, 0.329] |
 | Gemini 3.1 Flash-Lite (zero-shot) | 0.502 [0.489, 0.515] | 0.228 [0.219, 0.237] | 0.320 [0.310, 0.329] |
-| Gemini 3.1 Flash-Lite (2-shot) | 0.509 [0.496, 0.522] | 0.240 [0.231, 0.249] | 0.331 [0.321, 0.342] |
+| Gemini 3.1 Flash-Lite (2-shot) | 0.539 [0.525, 0.552] | 0.285 [0.273, 0.297] | 0.375 [0.363, 0.388] |
 | Fine-tuned 16-bit | 0.536 [0.516, 0.558] | 0.342 [0.322, 0.362] | 0.409 [0.389, 0.429] |
 | Fine-tuned Q8_0 | 0.559 [0.539, 0.579] | 0.356 [0.336, 0.377] | 0.423 [0.403, 0.443] |
 | Fine-tuned Q4_K_M | 0.529 [0.509, 0.549] | 0.328 [0.308, 0.348] | 0.400 [0.381, 0.420] |
@@ -154,7 +152,7 @@ Below the crossover the API is cheaper because you pay nothing when idle. Above 
 | Comparison | Mean difference | 95% CI | Verdict |
 |---|---|---|---|
 | Fine-tuned 16-bit minus Gemini 3.1 Flash-Lite (zero-shot) | +0.089 | [+0.071, +0.108] | significant |
-| Fine-tuned 16-bit minus Gemini 3.1 Flash-Lite (2-shot) | +0.078 | [+0.060, +0.095] | significant |
+| Fine-tuned 16-bit minus Gemini 3.1 Flash-Lite (2-shot) | +0.034 | [+0.016, +0.052] | significant |
 | Fine-tuned 16-bit minus Base Qwen2.5-3B | +0.090 | [+0.071, +0.109] | significant |
 | Fine-tuned 16-bit minus Fine-tuned Q4_K_M | +0.009 | [-0.009, +0.027] | not significant |
 | Fine-tuned Q8_0 minus Fine-tuned 16-bit | +0.014 | [-0.001, +0.029] | not significant |
@@ -168,7 +166,7 @@ A confidence interval that includes zero means the difference is not distinguish
 |---|---|---|---|---|
 | Base Qwen2.5-3B | 9.5% | 152 | 0.319 | 0.318 |
 | Gemini 3.1 Flash-Lite (zero-shot) | 0.0% | 167 | 0.320 | 0.320 |
-| Gemini 3.1 Flash-Lite (2-shot) | 0.0% | 164 | 0.331 | 0.331 |
+| Gemini 3.1 Flash-Lite (2-shot) | 0.0% | 152 | 0.375 | 0.375 |
 | Fine-tuned 16-bit | 29.5% | 171 | 0.409 | 0.411 |
 | Fine-tuned Q8_0 | 24.5% | 154 | 0.423 | 0.423 |
 | Fine-tuned Q4_K_M | 20.0% | 144 | 0.400 | 0.400 |
@@ -181,7 +179,7 @@ After the 200-word cut, fine-tuned minus zero-shot Gemini is +0.092 ROUGE-L [+0.
 |---|---|---|---|
 | Base Qwen2.5-3B | 738 | 24 | 3.3% [2.2%, 4.8%] |
 | Gemini 3.1 Flash-Lite (zero-shot) | 718 | 22 | 3.1% [2.0%, 4.6%] |
-| Gemini 3.1 Flash-Lite (2-shot) | 685 | 22 | 3.2% [2.1%, 4.8%] |
+| Gemini 3.1 Flash-Lite (2-shot) | 647 | 11 | 1.7% [1.0%, 3.0%] |
 | Fine-tuned 16-bit | 523 | 28 | 5.4% [3.7%, 7.6%] |
 | Fine-tuned Q8_0 | 541 | 16 | 3.0% [1.8%, 4.7%] |
 | Fine-tuned Q4_K_M | 486 | 16 | 3.3% [2.0%, 5.3%] |
@@ -203,7 +201,7 @@ The GPU price and how busy the GPU is both change the answer. Self-hosted cost p
 - A GPU that is only 10% busy costs more per call than the API at every price above. Self-hosting needs steady volume.
 - With the API's 50% batch discount ($0.386 per 1,000 calls) the crossover at $0.50/hr doubles to about 945,409 calls/month.
 - Prices are assumptions, not quotes. Check current GPU and API rates before deciding.
-- If the 2-shot prompt is used (more input tokens), the API cost is $0.761 per 1,000 calls and the crossover at $0.50/hr falls to about 479,405 calls/month.
+- With the 2-shot prompt the measured API cost is $1.440 per 1,000 calls and the crossover at $0.50/hr is about 253,478 calls/month.
 
 ## 5. Which option should you pick?
 
@@ -270,6 +268,7 @@ Training, merging and the vLLM benchmark need a GPU (a free Kaggle or Colab T4 w
 - ROUGE and BERTScore reward matching the reference summary style, not necessarily factual correctness.
 - Gemini was also graded by a Gemini judge, and a first lenient judging pass was discarded for scoring itself 5.0 out of 5.0.
 - Latencies across systems are not comparable (Mac and Ollama, T4 and vLLM, network API).
+- The Gemini runs used the API's default sampling settings, while the local models used temperature 0.
 - The GPU price is an assumption, and the API price is the list rate at the time of writing, without batch or cache discounts.
 - 4-bit quantization inside vLLM (AWQ or GPTQ) was not tested, because `bitsandbytes` is not supported in the vLLM version used.
 - PubMedQA, the harder variant in the original brief, was not run.
