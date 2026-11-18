@@ -285,3 +285,7 @@ Add AWQ or GPTQ 4-bit serving on vLLM; add confidence intervals over several see
 ## Credits
 
 BillSum dataset: Kornilova and Eidelman (2019), "BillSum: A Corpus for Automatic Summarization of US Legislation". Built with Unsloth, Hugging Face PEFT, vLLM, llama.cpp, Ollama, FastAPI and Arize Phoenix.
+
+## Observability screenshot
+
+![Phoenix trace of a /summarize call](docs/phoenix_trace.png)
