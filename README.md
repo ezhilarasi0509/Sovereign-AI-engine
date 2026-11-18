@@ -56,6 +56,7 @@ flowchart LR
 | Base Qwen2.5-3B-Instruct | Ollama on MacBook M4 | 0.492 | 0.237 | 0.319 | 0.813 |
 | Gemini 3.1 Flash-Lite | Google API (frontier baseline) | 0.502 | 0.228 | 0.320 | 0.820 |
 | Fine-tuned Qwen2.5-3B, 16-bit | vLLM on Kaggle T4 (concurrency 8) | 0.536 | 0.342 | 0.409 | 0.852 |
+| Fine-tuned Qwen2.5-3B, Q8_0 | Ollama on MacBook M4 | 0.559 | 0.356 | 0.423 | 0.854 |
 | Fine-tuned Qwen2.5-3B, Q4_K_M | Ollama on MacBook M4 | 0.529 | 0.328 | 0.400 | 0.846 |
 
 \*BERTScore used `distilbert-base-uncased`, so compare these numbers only with each other, not with published BERTScores.
@@ -73,10 +74,10 @@ An LLM-judge pass is not included. A first attempt with a lenient rubric and Gem
 | Format | File size | ROUGE-1 | ROUGE-L | Notes |
 |---|---|---|---|---|
 | fp16 | 5.8 GB | 0.536 | 0.409 | Reference quality |
-| Q8_0 | 3.1 GB | not evaluated | not evaluated | Built and uploaded, not scored |
+| Q8_0 | 3.1 GB | 0.559 | 0.423 | No significant loss versus fp16 (see 4.7) |
 | Q4_K_M | 1.8 GB | 0.529 | 0.400 | Keeps 98.7% of fp16 ROUGE-1 at 31% of the size |
 
-Quantizing to 4-bit lost 0.007 ROUGE-1 and 0.009 ROUGE-L, and the 4-bit model still beat both baselines. A paired bootstrap (section 4.7) shows this gap is within noise, so the quality cost of Q4_K_M is not statistically distinguishable from zero on 200 bills. For a laptop or edge deployment that trade is usually worth it.
+Quantizing to 4-bit lost 0.007 ROUGE-1 and 0.009 ROUGE-L, and the 4-bit model still beat both baselines. A paired bootstrap (section 4.7) shows this gap is within noise, so the quality cost of Q4_K_M is not statistically distinguishable from zero on 200 bills. Q8_0 scored 0.559 ROUGE-1 and 0.423 ROUGE-L with no significant loss against fp16. Its small ROUGE-1 edge over the vLLM fp16 run is not a benefit of quantization: it likely reflects generation differences (Q8_0 outputs were shorter, 154 versus 171 words, and hit the 300-token cap less often). Q4_K_M scored significantly below Q8_0 (about 0.03 ROUGE-1 and 0.02 ROUGE-L), so going from 8-bit to 4-bit has a small but measurable cost. For a laptop or edge deployment that trade is usually worth it.
 
 ### 4.4 Serving benchmark (fine-tuned 16-bit, vLLM, Kaggle T4)
 
@@ -97,6 +98,7 @@ Quantizing to 4-bit lost 0.007 ROUGE-1 and 0.009 ROUGE-L, and the 4-bit model st
 | Base Qwen2.5-3B-Instruct | Ollama on MacBook M4 | 15.2 | 25.2 |
 | Gemini 3.1 Flash-Lite | Google API (frontier baseline) | 3.2 | 7.5 |
 | Fine-tuned Qwen2.5-3B, 16-bit | vLLM on Kaggle T4 (concurrency 8) | 15.7 | 26.5 |
+| Fine-tuned Qwen2.5-3B, Q8_0 | Ollama on MacBook M4 | 17.0 | 26.0 |
 | Fine-tuned Qwen2.5-3B, Q4_K_M | Ollama on MacBook M4 | 15.0 | 36.6 |
 
 These come from different hardware and software stacks (a Mac with Ollama, a T4 with vLLM, a network API), so do not rank the systems by this table. Use section 4.4 for serving claims.
@@ -126,15 +128,18 @@ Below the crossover the API is cheaper because you pay nothing when idle. Above 
 | Base Qwen2.5-3B | 0.492 [0.478, 0.505] | 0.237 [0.228, 0.248] | 0.319 [0.309, 0.329] |
 | Gemini 3.1 Flash-Lite | 0.502 [0.489, 0.515] | 0.228 [0.219, 0.237] | 0.320 [0.310, 0.329] |
 | Fine-tuned 16-bit | 0.536 [0.516, 0.556] | 0.342 [0.322, 0.363] | 0.409 [0.389, 0.429] |
-| Fine-tuned Q4_K_M | 0.529 [0.510, 0.549] | 0.328 [0.309, 0.347] | 0.400 [0.381, 0.420] |
+| Fine-tuned Q8_0 | 0.559 [0.540, 0.580] | 0.356 [0.336, 0.376] | 0.423 [0.403, 0.444] |
+| Fine-tuned Q4_K_M | 0.529 [0.510, 0.548] | 0.328 [0.308, 0.348] | 0.400 [0.380, 0.419] |
 
 **Paired differences in ROUGE-L** (same bills, bootstrap):
 
 | Comparison | Mean difference | 95% CI | Verdict |
 |---|---|---|---|
-| Fine-tuned 16-bit minus Gemini 3.1 Flash-Lite | +0.089 | [+0.071, +0.109] | significant |
+| Fine-tuned 16-bit minus Gemini 3.1 Flash-Lite | +0.089 | [+0.071, +0.108] | significant |
 | Fine-tuned 16-bit minus Base Qwen2.5-3B | +0.090 | [+0.071, +0.109] | significant |
 | Fine-tuned 16-bit minus Fine-tuned Q4_K_M | +0.009 | [-0.009, +0.027] | not significant |
+| Fine-tuned Q8_0 minus Fine-tuned 16-bit | +0.014 | [-0.001, +0.029] | not significant |
+| Fine-tuned Q8_0 minus Fine-tuned Q4_K_M | +0.023 | [+0.009, +0.037] | significant |
 
 The fine-tuned model's lead over Gemini and the base model is statistically supported. The 16-bit versus Q4_K_M gap is not distinguishable from noise on 200 bills.
 
@@ -145,6 +150,7 @@ The fine-tuned model's lead over Gemini and the base model is statistically supp
 | Base Qwen2.5-3B | 9.5% | 152 | 0.319 | 0.318 |
 | Gemini 3.1 Flash-Lite | 0.0% | 167 | 0.320 | 0.320 |
 | Fine-tuned 16-bit | 29.5% | 171 | 0.409 | 0.411 |
+| Fine-tuned Q8_0 | 24.5% | 154 | 0.423 | 0.423 |
 | Fine-tuned Q4_K_M | 20.0% | 144 | 0.400 | 0.400 |
 
 After the 200-word cut, fine-tuned minus Gemini is +0.092 ROUGE-L [+0.074, +0.110], significant.
@@ -156,6 +162,7 @@ After the 200-word cut, fine-tuned minus Gemini is +0.092 ROUGE-L [+0.074, +0.11
 | Base Qwen2.5-3B | 738 | 24 | 3.3% [2.2%, 4.8%] |
 | Gemini 3.1 Flash-Lite | 718 | 22 | 3.1% [2.0%, 4.6%] |
 | Fine-tuned 16-bit | 523 | 28 | 5.4% [3.7%, 7.6%] |
+| Fine-tuned Q8_0 | 541 | 16 | 3.0% [1.8%, 4.7%] |
 | Fine-tuned Q4_K_M | 486 | 16 | 3.3% [2.0%, 5.3%] |
 
 Fine-tuning improved style and overlap but showed no evidence of better factual grounding on this check: the 16-bit model had the highest rate of unmatched numbers, though its interval overlaps the others, so this is suggestive rather than conclusive. Verify facts before using any summary in a legal setting.
@@ -242,13 +249,13 @@ Training, merging and the vLLM benchmark need a GPU (a free Kaggle or Colab T4 w
 - Gemini was also graded by a Gemini judge, and a first lenient judging pass was discarded for scoring itself 5.0 out of 5.0.
 - Latencies across systems are not comparable (Mac and Ollama, T4 and vLLM, network API).
 - The GPU price is an assumption, and the API price is the list rate at the time of writing, without batch or cache discounts.
-- Q8_0 was built but not evaluated. 4-bit quantization inside vLLM (AWQ or GPTQ) was not tested, because `bitsandbytes` is not supported in the vLLM version used.
+- 4-bit quantization inside vLLM (AWQ or GPTQ) was not tested, because `bitsandbytes` is not supported in the vLLM version used.
 - PubMedQA, the harder variant in the original brief, was not run.
 - Check the license of the base model (Qwen2.5-3B-Instruct) and of BillSum before commercial use.
 
 ## 11. Next steps
 
-Evaluate Q8_0; add AWQ or GPTQ 4-bit serving on vLLM; add confidence intervals over several seeds; run PubMedQA; re-run the throughput benchmark with CUDA graphs enabled.
+Add AWQ or GPTQ 4-bit serving on vLLM; add confidence intervals over several seeds; run PubMedQA; re-run the throughput benchmark with CUDA graphs enabled.
 
 ## 12. Glossary
 

@@ -20,7 +20,7 @@ for name,f in [("finetuned_16bit","results/finetuned_t4.jsonl"),("q4_k_m","resul
                 t=c.models.generate_content(model=JM,contents=Q.format(b=b["text"],ref=r["ref"],c=r["pred"])).text
                 j=json.loads(re.search(r"\{.*\}",t,re.S).group(0)); sc.append((j["faithfulness"],j["coverage"])); break
             except Exception as e:
-                time.sleep(15)
+                print('ERR',name,a,str(e)[:160].replace(chr(10),' '),flush=True); time.sleep(15)
         time.sleep(3)
     s=np.array(sc); out[name]={"n":len(sc),"faithfulness":round(float(s[:,0].mean()),2),"coverage":round(float(s[:,1].mean()),2)}
     print(name,out[name],flush=True)

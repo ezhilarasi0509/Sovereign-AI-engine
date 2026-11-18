@@ -8,14 +8,17 @@ def rouge(rows):
     return [float(np.mean([x[k].fmeasure for x in sc])) for k in ["rouge1","rouge2","rougeL"]]
 def lat(rows):
     l=[r["latency"] for r in rows]; return np.percentile(l,50),np.percentile(l,95)
+BQ8=json.load(open("results/bert_q8.json"))["f1"]
 SYS=[("base","Base Qwen2.5-3B-Instruct","Ollama on MacBook M4","results/qwen2.5_3b.jsonl",0.813),
      ("gem","Gemini 3.1 Flash-Lite","Google API (frontier baseline)","results/gemini-3.1-flash-lite.jsonl",0.820),
      ("ft","Fine-tuned Qwen2.5-3B, 16-bit","vLLM on Kaggle T4 (concurrency 8)","results/vllm_16bit_c8.jsonl",0.852),
+     ("q8","Fine-tuned Qwen2.5-3B, Q8_0","Ollama on MacBook M4","results/billsum-q8.jsonl",BQ8),
      ("q4","Fine-tuned Qwen2.5-3B, Q4_K_M","Ollama on MacBook M4","results/billsum-q4b.jsonl",0.846)]
 D={k:(n,h,load(p),b) for k,n,h,p,b in SYS}
 R={k:rouge(v[2]) for k,v in D.items()}
 L={k:lat(v[2]) for k,v in D.items()}
 base,gem,ft,q4=R["base"],R["gem"],R["ft"],R["q4"]
+q8=R["q8"]
 gr=D["gem"][2]
 ain=np.mean([r["in_tok"] for r in gr]); aout=np.mean([r["out_tok"] for r in gr])
 api1k=1000*(ain*IN_P+aout*OUT_P)/1e6
@@ -25,8 +28,8 @@ c8=GPU_HR/(v["8"]["req_per_s"]*3600)*1000; c32=GPU_HR/(v["32"]["req_per_s"]*3600
 cap32=v["32"]["req_per_s"]*3600*HRS
 r2gain=(ft[1]-base[1])/base[1]*100
 keep=q4[0]/ft[0]*100
-qual="".join(f"| {D[k][0]} | {D[k][1]} | {R[k][0]:.3f} | {R[k][1]:.3f} | {R[k][2]:.3f} | {D[k][3]:.3f} |\n" for k in ["base","gem","ft","q4"])
-latt="".join(f"| {D[k][0]} | {D[k][1]} | {L[k][0]:.1f} | {L[k][1]:.1f} |\n" for k in ["base","gem","ft","q4"])
+qual="".join(f"| {D[k][0]} | {D[k][1]} | {R[k][0]:.3f} | {R[k][1]:.3f} | {R[k][2]:.3f} | {D[k][3]:.3f} |\n" for k in ["base","gem","ft","q8","q4"])
+latt="".join(f"| {D[k][0]} | {D[k][1]} | {L[k][0]:.1f} | {L[k][1]:.1f} |\n" for k in ["base","gem","ft","q8","q4"])
 bench="".join(f"| {c} | {v[c]['p50']} | {v[c]['p95']} | {v[c]['tok_per_s']} | {v[c]['req_per_s']} |\n" for c in ["1","8","32"])
 if os.path.exists("results/judge_strong.json"):
     j=json.load(open("results/judge_strong.json"))
@@ -36,6 +39,13 @@ if os.path.exists("results/judge_strong.json"):
     jt+="\nLLM judges are noisy and can favor their own style, so treat this as a sanity check, not a verdict.\n"
 else:
     jt="An LLM-judge pass is not included. A first attempt with a lenient rubric and Gemini Flash-Lite as judge was discarded: it gave Gemini a perfect 5.0 on its own summaries and ranked the base model above the fine-tuned one, which contradicts every other metric.\n"
+spd=""
+if os.path.exists("results/speed_mac.json"):
+    sp=json.load(open("results/speed_mac.json"))
+    spd="### 4.5b Same-hardware speed: Q4_K_M versus Q8_0 (idle MacBook M4, Ollama)\n\n| Model | Requests | P50 (s) | P95 (s) | Output tokens/s |\n|---|---|---|---|---|\n"
+    for m,n in [("billsum-q8","Q8_0"),("billsum-q4b","Q4_K_M")]:
+        spd+=f"| {n} | {sp[m]['n']} | {sp[m]['p50_s']} | {sp[m]['p95_s']} | {sp[m]['tok_per_s']} |\n"
+    spd+="\nBoth models ran alternately on an otherwise idle machine, 29 bills per round, 2 rounds, 300-token cap.\n\n"
 md=f"""# Sovereign AI Engine: summarizing US legislation with a model you run yourself
 
 > **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, produced better bill summaries than a frontier API baseline on this task, and above roughly **{cross:,.0f} calls per month** it is also cheaper to run yourself.
@@ -106,10 +116,10 @@ flowchart LR
 | Format | File size | ROUGE-1 | ROUGE-L | Notes |
 |---|---|---|---|---|
 | fp16 | 5.8 GB | {ft[0]:.3f} | {ft[2]:.3f} | Reference quality |
-| Q8_0 | 3.1 GB | not evaluated | not evaluated | Built and uploaded, not scored |
+| Q8_0 | 3.1 GB | {q8[0]:.3f} | {q8[2]:.3f} | No significant loss versus fp16 (see 4.7) |
 | Q4_K_M | 1.8 GB | {q4[0]:.3f} | {q4[2]:.3f} | Keeps {keep:.1f}% of fp16 ROUGE-1 at 31% of the size |
 
-Quantizing to 4-bit lost {ft[0]-q4[0]:.3f} ROUGE-1 and {ft[2]-q4[2]:.3f} ROUGE-L, and the 4-bit model still beat both baselines. A paired bootstrap (section 4.7) shows this gap is within noise, so the quality cost of Q4_K_M is not statistically distinguishable from zero on 200 bills. For a laptop or edge deployment that trade is usually worth it.
+Quantizing to 4-bit lost {ft[0]-q4[0]:.3f} ROUGE-1 and {ft[2]-q4[2]:.3f} ROUGE-L, and the 4-bit model still beat both baselines. A paired bootstrap (section 4.7) shows this gap is within noise, so the quality cost of Q4_K_M is not statistically distinguishable from zero on 200 bills. Q8_0 scored {q8[0]:.3f} ROUGE-1 and {q8[2]:.3f} ROUGE-L with no significant loss against fp16. Its small ROUGE-1 edge over the vLLM fp16 run is not a benefit of quantization: it likely reflects generation differences (Q8_0 outputs were shorter, 154 versus 171 words, and hit the 300-token cap less often). Q4_K_M scored significantly below Q8_0 (about 0.03 ROUGE-1 and 0.02 ROUGE-L), so going from 8-bit to 4-bit has a small but measurable cost. For a laptop or edge deployment that trade is usually worth it.
 
 ### 4.4 Serving benchmark (fine-tuned 16-bit, vLLM, Kaggle T4)
 
@@ -127,7 +137,7 @@ Quantizing to 4-bit lost {ft[0]-q4[0]:.3f} ROUGE-1 and {ft[2]-q4[2]:.3f} ROUGE-L
 {latt}
 These come from different hardware and software stacks (a Mac with Ollama, a T4 with vLLM, a network API), so do not rank the systems by this table. Use section 4.4 for serving claims.
 
-### 4.6 Cost and the crossover point
+{spd}### 4.6 Cost and the crossover point
 
 | Item | Value |
 |---|---|
@@ -209,13 +219,13 @@ Training, merging and the vLLM benchmark need a GPU (a free Kaggle or Colab T4 w
 - Gemini was also graded by a Gemini judge, and a first lenient judging pass was discarded for scoring itself 5.0 out of 5.0.
 - Latencies across systems are not comparable (Mac and Ollama, T4 and vLLM, network API).
 - The GPU price is an assumption, and the API price is the list rate at the time of writing, without batch or cache discounts.
-- Q8_0 was built but not evaluated. 4-bit quantization inside vLLM (AWQ or GPTQ) was not tested, because `bitsandbytes` is not supported in the vLLM version used.
+- 4-bit quantization inside vLLM (AWQ or GPTQ) was not tested, because `bitsandbytes` is not supported in the vLLM version used.
 - PubMedQA, the harder variant in the original brief, was not run.
 - Check the license of the base model (Qwen2.5-3B-Instruct) and of BillSum before commercial use.
 
 ## 11. Next steps
 
-Evaluate Q8_0; add AWQ or GPTQ 4-bit serving on vLLM; add confidence intervals over several seeds; run PubMedQA; re-run the throughput benchmark with CUDA graphs enabled.
+Add AWQ or GPTQ 4-bit serving on vLLM; add confidence intervals over several seeds; run PubMedQA; re-run the throughput benchmark with CUDA graphs enabled.
 
 ## 12. Glossary
 

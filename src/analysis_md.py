@@ -3,8 +3,8 @@ from rouge_score import rouge_scorer
 S=rouge_scorer.RougeScorer(["rouge1","rouge2","rougeL"],use_stemmer=True)
 def load(p): return [json.loads(l) for l in open(p)]
 bills=[json.loads(l)["text"] for l in open("data/test.jsonl")][:200]
-N={"base":"Base Qwen2.5-3B","gemini":"Gemini 3.1 Flash-Lite","ft16":"Fine-tuned 16-bit","q4":"Fine-tuned Q4_K_M"}
-P={"base":"results/qwen2.5_3b.jsonl","gemini":"results/gemini-3.1-flash-lite.jsonl","ft16":"results/vllm_16bit_c8.jsonl","q4":"results/billsum-q4b.jsonl"}
+N={"base":"Base Qwen2.5-3B","gemini":"Gemini 3.1 Flash-Lite","ft16":"Fine-tuned 16-bit","q8":"Fine-tuned Q8_0","q4":"Fine-tuned Q4_K_M"}
+P={"base":"results/qwen2.5_3b.jsonl","gemini":"results/gemini-3.1-flash-lite.jsonl","ft16":"results/vllm_16bit_c8.jsonl","q8":"results/billsum-q8.jsonl","q4":"results/billsum-q4b.jsonl"}
 D={k:load(p) for k,p in P.items()}
 def per(rows,trunc=None):
     return np.array([[S.score(r["ref"]," ".join(r["pred"].split()[:trunc]) if trunc else r["pred"])[m].fmeasure
@@ -25,7 +25,7 @@ md+="**Bootstrap 95% confidence intervals** (200 bills, 3,000 resamples):\n\n| S
 for k in N:
     md+=f"| {N[k]} | "+" | ".join("%.3f [%.3f, %.3f]"%ci(full[k],c) for c in range(3))+" |\n"
 md+="\n**Paired differences in ROUGE-L** (same bills, bootstrap):\n\n| Comparison | Mean difference | 95% CI | Verdict |\n|---|---|---|---|\n"
-for a,b in [("ft16","gemini"),("ft16","base"),("ft16","q4")]:
+for a,b in [("ft16","gemini"),("ft16","base"),("ft16","q4"),("q8","ft16"),("q8","q4")]:
     m,lo,hi,vd=pair(full[a],full[b]); md+=f"| {N[a]} minus {N[b]} | {m:+.3f} | [{lo:+.3f}, {hi:+.3f}] | {vd} |\n"
 md+="\nThe fine-tuned model's lead over Gemini and the base model is statistically supported. The 16-bit versus Q4_K_M gap is not distinguishable from noise on 200 bills.\n\n"
 md+="**Length control.** Output caps differed: the 16-bit and Q4 runs were capped at 300 tokens, while base Qwen and Gemini had no cap. The share of outputs that hit 299 or more tokens, plus a rescoring with every output cut to its first 200 words (the length the prompt asked for):\n\n| System | Hit 300-token cap | Avg words (reference 151) | ROUGE-L, full output | ROUGE-L, first 200 words |\n|---|---|---|---|---|\n"

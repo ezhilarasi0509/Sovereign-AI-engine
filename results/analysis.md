@@ -7,15 +7,18 @@
 | Base Qwen2.5-3B | 0.492 [0.478, 0.505] | 0.237 [0.228, 0.248] | 0.319 [0.309, 0.329] |
 | Gemini 3.1 Flash-Lite | 0.502 [0.489, 0.515] | 0.228 [0.219, 0.237] | 0.320 [0.310, 0.329] |
 | Fine-tuned 16-bit | 0.536 [0.516, 0.556] | 0.342 [0.322, 0.363] | 0.409 [0.389, 0.429] |
-| Fine-tuned Q4_K_M | 0.529 [0.510, 0.549] | 0.328 [0.309, 0.347] | 0.400 [0.381, 0.420] |
+| Fine-tuned Q8_0 | 0.559 [0.540, 0.580] | 0.356 [0.336, 0.376] | 0.423 [0.403, 0.444] |
+| Fine-tuned Q4_K_M | 0.529 [0.510, 0.548] | 0.328 [0.308, 0.348] | 0.400 [0.380, 0.419] |
 
 **Paired differences in ROUGE-L** (same bills, bootstrap):
 
 | Comparison | Mean difference | 95% CI | Verdict |
 |---|---|---|---|
-| Fine-tuned 16-bit minus Gemini 3.1 Flash-Lite | +0.089 | [+0.071, +0.109] | significant |
+| Fine-tuned 16-bit minus Gemini 3.1 Flash-Lite | +0.089 | [+0.071, +0.108] | significant |
 | Fine-tuned 16-bit minus Base Qwen2.5-3B | +0.090 | [+0.071, +0.109] | significant |
 | Fine-tuned 16-bit minus Fine-tuned Q4_K_M | +0.009 | [-0.009, +0.027] | not significant |
+| Fine-tuned Q8_0 minus Fine-tuned 16-bit | +0.014 | [-0.001, +0.029] | not significant |
+| Fine-tuned Q8_0 minus Fine-tuned Q4_K_M | +0.023 | [+0.009, +0.037] | significant |
 
 The fine-tuned model's lead over Gemini and the base model is statistically supported. The 16-bit versus Q4_K_M gap is not distinguishable from noise on 200 bills.
 
@@ -26,6 +29,7 @@ The fine-tuned model's lead over Gemini and the base model is statistically supp
 | Base Qwen2.5-3B | 9.5% | 152 | 0.319 | 0.318 |
 | Gemini 3.1 Flash-Lite | 0.0% | 167 | 0.320 | 0.320 |
 | Fine-tuned 16-bit | 29.5% | 171 | 0.409 | 0.411 |
+| Fine-tuned Q8_0 | 24.5% | 154 | 0.423 | 0.423 |
 | Fine-tuned Q4_K_M | 20.0% | 144 | 0.400 | 0.400 |
 
 After the 200-word cut, fine-tuned minus Gemini is +0.092 ROUGE-L [+0.074, +0.110], significant.
@@ -37,6 +41,7 @@ After the 200-word cut, fine-tuned minus Gemini is +0.092 ROUGE-L [+0.074, +0.11
 | Base Qwen2.5-3B | 738 | 24 | 3.3% [2.2%, 4.8%] |
 | Gemini 3.1 Flash-Lite | 718 | 22 | 3.1% [2.0%, 4.6%] |
 | Fine-tuned 16-bit | 523 | 28 | 5.4% [3.7%, 7.6%] |
+| Fine-tuned Q8_0 | 541 | 16 | 3.0% [1.8%, 4.7%] |
 | Fine-tuned Q4_K_M | 486 | 16 | 3.3% [2.0%, 5.3%] |
 
 Fine-tuning improved style and overlap but showed no evidence of better factual grounding on this check: the 16-bit model had the highest rate of unmatched numbers, though its interval overlaps the others, so this is suggestive rather than conclusive. Verify facts before using any summary in a legal setting.
