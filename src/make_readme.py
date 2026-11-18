@@ -50,7 +50,7 @@ if os.path.exists("results/speed_mac.json"):
     spd+="\nBoth models ran alternately on an otherwise idle machine, 29 bills per round, 2 rounds, 300-token cap.\n\n"
 md=f"""# Sovereign AI Engine: summarizing US legislation with a model you run yourself
 
-> **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, produced better bill summaries than a low-cost API baseline (Gemini 3.1 Flash-Lite) on this task, and above roughly **{cross:,.0f} calls per month** it is also cheaper to run yourself.
+> **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, scored higher than a low-cost API model (Gemini 3.1 Flash-Lite) on ROUGE-2, ROUGE-L and BERTScore, whether the API model was prompted with zero or two examples (ROUGE-1 is level with the 2-shot prompt), and above roughly **{cross:,.0f} calls per month** it is also cheaper to run yourself.
 >
 > **Licensing note:** the base model (Qwen2.5-3B-Instruct) is released under the Qwen Research License, which allows non-commercial use only. See section 13.
 
@@ -113,6 +113,7 @@ flowchart LR
 - Fine-tuning raised ROUGE-2 from {base[1]:.3f} to {ft[1]:.3f} (about {r2gain:.0f}% relative) and ROUGE-L from {base[2]:.3f} to {ft[2]:.3f}.
 - The fine-tuned model beat the zero-shot Gemini 3.1 Flash-Lite baseline on every ROUGE metric and on BERTScore.
 - Giving Gemini two example bill and summary pairs in the prompt (2-shot) moved its ROUGE-L from {gem[2]:.3f} to {R["gem2"][2]:.3f}, against {ft[2]:.3f} for the fine-tuned 16-bit model. The fine-tuned model is {"still ahead" if ft[2]>R["gem2"][2] else "not ahead"} on ROUGE-L; section 4.7 gives the confidence interval.
+- Two examples closed about {(R["gem2"][2]-gem[2])/(ft[2]-gem[2])*100:.0f}% of the ROUGE-L gap between zero-shot Gemini and the fine-tuned model, and 2-shot Gemini ({R["gem2"][0]:.3f}) is level with the fine-tuned model ({ft[0]:.3f}) on ROUGE-1. The fine-tuned model's clear leads are on ROUGE-2, ROUGE-L and BERTScore. Few-shot prompting is the cheaper first step, but the longer prompt raises API cost (section 4.8).
 - The gain comes largely from learning the legislative summary style and length, which the BillSum references share. A general-purpose API model is not trained for that style.
 
 ### 4.2 LLM-judge check
@@ -125,7 +126,7 @@ flowchart LR
 | Q8_0 | 3.1 GB | {q8[0]:.3f} | {q8[2]:.3f} | No significant loss versus fp16 (see 4.7) |
 | Q4_K_M | 1.8 GB | {q4[0]:.3f} | {q4[2]:.3f} | Keeps {keep:.1f}% of fp16 ROUGE-1 at 31% of the size |
 
-Quantizing to 4-bit lost {ft[0]-q4[0]:.3f} ROUGE-1 and {ft[2]-q4[2]:.3f} ROUGE-L, and the 4-bit model still beat both baselines. A paired bootstrap (section 4.7) shows this gap is within noise, so the quality cost of Q4_K_M is not statistically distinguishable from zero on 200 bills. Q8_0 scored {q8[0]:.3f} ROUGE-1 and {q8[2]:.3f} ROUGE-L with no significant loss against fp16. Its small ROUGE-1 edge over the vLLM fp16 run is not a benefit of quantization: it likely reflects generation differences (Q8_0 outputs were shorter, 154 versus 171 words, and hit the 300-token cap less often). Q4_K_M scored significantly below Q8_0 (about 0.03 ROUGE-1 and 0.02 ROUGE-L), so going from 8-bit to 4-bit has a small but measurable cost. For a laptop or edge deployment that trade is usually worth it.
+Quantizing to 4-bit lost {ft[0]-q4[0]:.3f} ROUGE-1 and {ft[2]-q4[2]:.3f} ROUGE-L, and the 4-bit model still beat the base model and zero-shot Gemini on every metric (it trails 2-shot Gemini on ROUGE-1). A paired bootstrap (section 4.7) shows this gap is within noise, so the quality cost of Q4_K_M is not statistically distinguishable from zero on 200 bills. Q8_0 scored {q8[0]:.3f} ROUGE-1 and {q8[2]:.3f} ROUGE-L with no significant loss against fp16. Its small ROUGE-1 edge over the vLLM fp16 run is not a benefit of quantization: it likely reflects generation differences (Q8_0 outputs were shorter, 154 versus 171 words, and hit the 300-token cap less often). Q4_K_M scored significantly below Q8_0 (about 0.03 ROUGE-1 and 0.02 ROUGE-L), so going from 8-bit to 4-bit has a small but measurable cost. For a laptop or edge deployment that trade is usually worth it.
 
 ### 4.4 Serving benchmark (fine-tuned 16-bit, vLLM, Kaggle T4)
 

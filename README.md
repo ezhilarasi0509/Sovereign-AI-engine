@@ -1,6 +1,6 @@
 # Sovereign AI Engine: summarizing US legislation with a model you run yourself
 
-> **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, produced better bill summaries than a low-cost API baseline (Gemini 3.1 Flash-Lite) on this task, and above roughly **472,705 calls per month** it is also cheaper to run yourself.
+> **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, scored higher than a low-cost API model (Gemini 3.1 Flash-Lite) on ROUGE-2, ROUGE-L and BERTScore, whether the API model was prompted with zero or two examples (ROUGE-1 is level with the 2-shot prompt), and above roughly **472,705 calls per month** it is also cheaper to run yourself.
 >
 > **Licensing note:** the base model (Qwen2.5-3B-Instruct) is released under the Qwen Research License, which allows non-commercial use only. See section 13.
 
@@ -69,6 +69,7 @@ flowchart LR
 - Fine-tuning raised ROUGE-2 from 0.237 to 0.342 (about 44% relative) and ROUGE-L from 0.319 to 0.409.
 - The fine-tuned model beat the zero-shot Gemini 3.1 Flash-Lite baseline on every ROUGE metric and on BERTScore.
 - Giving Gemini two example bill and summary pairs in the prompt (2-shot) moved its ROUGE-L from 0.320 to 0.375, against 0.409 for the fine-tuned 16-bit model. The fine-tuned model is still ahead on ROUGE-L; section 4.7 gives the confidence interval.
+- Two examples closed about 62% of the ROUGE-L gap between zero-shot Gemini and the fine-tuned model, and 2-shot Gemini (0.539) is level with the fine-tuned model (0.536) on ROUGE-1. The fine-tuned model's clear leads are on ROUGE-2, ROUGE-L and BERTScore. Few-shot prompting is the cheaper first step, but the longer prompt raises API cost (section 4.8).
 - The gain comes largely from learning the legislative summary style and length, which the BillSum references share. A general-purpose API model is not trained for that style.
 
 ### 4.2 LLM-judge check
@@ -82,7 +83,7 @@ An LLM-judge pass is not included. A first attempt with a lenient rubric and Gem
 | Q8_0 | 3.1 GB | 0.559 | 0.423 | No significant loss versus fp16 (see 4.7) |
 | Q4_K_M | 1.8 GB | 0.529 | 0.400 | Keeps 98.7% of fp16 ROUGE-1 at 31% of the size |
 
-Quantizing to 4-bit lost 0.007 ROUGE-1 and 0.009 ROUGE-L, and the 4-bit model still beat both baselines. A paired bootstrap (section 4.7) shows this gap is within noise, so the quality cost of Q4_K_M is not statistically distinguishable from zero on 200 bills. Q8_0 scored 0.559 ROUGE-1 and 0.423 ROUGE-L with no significant loss against fp16. Its small ROUGE-1 edge over the vLLM fp16 run is not a benefit of quantization: it likely reflects generation differences (Q8_0 outputs were shorter, 154 versus 171 words, and hit the 300-token cap less often). Q4_K_M scored significantly below Q8_0 (about 0.03 ROUGE-1 and 0.02 ROUGE-L), so going from 8-bit to 4-bit has a small but measurable cost. For a laptop or edge deployment that trade is usually worth it.
+Quantizing to 4-bit lost 0.007 ROUGE-1 and 0.009 ROUGE-L, and the 4-bit model still beat the base model and zero-shot Gemini on every metric (it trails 2-shot Gemini on ROUGE-1). A paired bootstrap (section 4.7) shows this gap is within noise, so the quality cost of Q4_K_M is not statistically distinguishable from zero on 200 bills. Q8_0 scored 0.559 ROUGE-1 and 0.423 ROUGE-L with no significant loss against fp16. Its small ROUGE-1 edge over the vLLM fp16 run is not a benefit of quantization: it likely reflects generation differences (Q8_0 outputs were shorter, 154 versus 171 words, and hit the 300-token cap less often). Q4_K_M scored significantly below Q8_0 (about 0.03 ROUGE-1 and 0.02 ROUGE-L), so going from 8-bit to 4-bit has a small but measurable cost. For a laptop or edge deployment that trade is usually worth it.
 
 ### 4.4 Serving benchmark (fine-tuned 16-bit, vLLM, Kaggle T4)
 
