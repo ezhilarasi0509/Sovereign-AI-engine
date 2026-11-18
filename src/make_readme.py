@@ -49,6 +49,8 @@ if os.path.exists("results/speed_mac.json"):
 md=f"""# Sovereign AI Engine: summarizing US legislation with a model you run yourself
 
 > **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, produced better bill summaries than a frontier API baseline on this task, and above roughly **{cross:,.0f} calls per month** it is also cheaper to run yourself.
+>
+> **Licensing note:** the base model (Qwen2.5-3B-Instruct) is released under the Qwen Research License, which allows non-commercial use only. See section 13.
 
 ## 1. Purpose of this project
 
@@ -221,7 +223,7 @@ Training, merging and the vLLM benchmark need a GPU (a free Kaggle or Colab T4 w
 - The GPU price is an assumption, and the API price is the list rate at the time of writing, without batch or cache discounts.
 - 4-bit quantization inside vLLM (AWQ or GPTQ) was not tested, because `bitsandbytes` is not supported in the vLLM version used.
 - PubMedQA, the harder variant in the original brief, was not run.
-- Check the license of the base model (Qwen2.5-3B-Instruct) and of BillSum before commercial use.
+- Licensing: the base model is under the Qwen Research License (non-commercial); read section 13 before any commercial use.
 
 ## 11. Next steps
 

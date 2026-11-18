@@ -1,6 +1,8 @@
 # Sovereign AI Engine: summarizing US legislation with a model you run yourself
 
 > **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, produced better bill summaries than a frontier API baseline on this task, and above roughly **472,705 calls per month** it is also cheaper to run yourself.
+>
+> **Licensing note:** the base model (Qwen2.5-3B-Instruct) is released under the Qwen Research License, which allows non-commercial use only. See section 13.
 
 ## 1. Purpose of this project
 
@@ -260,7 +262,7 @@ Training, merging and the vLLM benchmark need a GPU (a free Kaggle or Colab T4 w
 - The GPU price is an assumption, and the API price is the list rate at the time of writing, without batch or cache discounts.
 - 4-bit quantization inside vLLM (AWQ or GPTQ) was not tested, because `bitsandbytes` is not supported in the vLLM version used.
 - PubMedQA, the harder variant in the original brief, was not run.
-- Check the license of the base model (Qwen2.5-3B-Instruct) and of BillSum before commercial use.
+- Licensing: the base model is under the Qwen Research License (non-commercial); read section 13 before any commercial use.
 
 ## 11. Next steps
 
@@ -289,3 +291,19 @@ BillSum dataset: Kornilova and Eidelman (2019), "BillSum: A Corpus for Automatic
 ## Observability screenshot
 
 ![Phoenix trace of a /summarize call](docs/phoenix_trace.png)
+
+## 13. Licenses and attribution
+
+| Component | License | What it means here |
+|---|---|---|
+| This repository's code | MIT (see `LICENSE`) | Free to reuse |
+| Qwen2.5-3B-Instruct (base model) | Qwen Research License | Non-commercial use (research or evaluation) only; commercial use requires a license from Alibaba Cloud |
+| Fine-tuned, merged and GGUF weights | Derived from Qwen2.5-3B-Instruct | Same restrictions; currently kept in private Hugging Face repositories |
+| BillSum dataset | CC0 1.0 (as listed on its Hugging Face card) | No restrictions |
+| Gemini API | Google's terms of service | Used only to produce baseline outputs |
+
+**Built with Qwen.** Improved using Qwen. Qwen is licensed under the Qwen RESEARCH LICENSE AGREEMENT, Copyright (c) Alibaba Cloud. All Rights Reserved.
+
+If you publish weights derived from this model, the Qwen license requires you to give recipients a copy of its agreement, mark modified files, keep the attribution notice (see `NOTICE`), and display "Built with Qwen" or "Improved using Qwen" in the documentation.
+
+**What this means for the cost analysis:** the quality, speed and cost numbers describe this specific model in a research and evaluation setting. A team that wants to deploy commercially would need either a license from Alibaba Cloud or a base model whose license allows commercial use, and should re-run the evaluation with that model. This section is not legal advice.

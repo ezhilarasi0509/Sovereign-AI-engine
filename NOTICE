@@ -1,0 +1,4 @@
+This project fine-tunes and evaluates Qwen2.5-3B-Instruct.
+Built with Qwen. Improved using Qwen.
+Qwen is licensed under the Qwen RESEARCH LICENSE AGREEMENT, Copyright (c) Alibaba Cloud. All Rights Reserved.
+The MIT license in this repository applies to this repository's code only, not to Qwen model weights or files derived from them.
