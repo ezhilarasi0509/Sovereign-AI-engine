@@ -15,7 +15,7 @@
 | Unsupported claims per summary (15-bill audit, lower is better) | not audited | not audited | 0.20 | 1.00 | 0.53 |
 | API cost per 1,000 calls | n/a | $0.77 | see section 4.8 | self-hosted | self-hosted |
 
-Overlap scores favor the fine-tuned model, while the manual audit favors 2-shot Gemini on factual support. Details in sections 4.1, 4.7 and 4.10.
+Overlap scores favor the fine-tuned model, while the manual audit favors 2-shot Gemini on factual support. Base Qwen and zero-shot Gemini were not audited, so the audit cannot say whether fine-tuning itself increased unsupported claims. Details in sections 4.1, 4.7 and 4.10.
 
 ## 1. Purpose of this project
 
@@ -250,7 +250,7 @@ Paired difference in average unsupported claims per summary (bootstrap over bill
 | Fine-tuned 16-bit minus Gemini 3.1 Flash-Lite (2-shot) | +0.80 | [+0.33, +1.27] |
 | Fine-tuned 16-bit minus Fine-tuned Q4_K_M | +0.47 | [+0.07, +0.87] |
 
-Limits: the counts were proposed by an AI model (Claude) after it read each bill and the three summaries, and the reviewer entered them, so this is an AI-assisted audit and not an independent human review. The counting rule was: a summary claim counts as unsupported if the bill does not say it or the summary states it more strongly than the bill does; claims that are weaker than the bill, and omissions, do not count. Some counts were judgment calls. The reviewer knew which project this was, only 15 bills were checked, and style cues such as length or run-on text can still hint at the system. Treat this as a spot check, not a measurement of overall factual accuracy.
+Limits: the counts were proposed by an AI model (Claude) after it read each bill and the three summaries, and the reviewer entered them, so this is an AI-assisted audit and not an independent human review. The counting rule was: a summary claim counts as unsupported if the bill does not say it or the summary states it more strongly than the bill does; claims that are weaker than the bill, and omissions, do not count. Some counts were judgment calls. The reviewer knew which project this was, only 15 bills were checked, and style cues such as length or run-on text can still hint at the system. Base Qwen and zero-shot Gemini were not audited, so this cannot show whether fine-tuning itself caused the extra unsupported claims. Treat this as a spot check, not a measurement of overall factual accuracy.
 
 ## 5. Which option should you pick?
 

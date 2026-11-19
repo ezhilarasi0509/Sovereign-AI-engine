@@ -61,7 +61,7 @@ tldr+=f"| ROUGE-L | {R['base'][2]:.3f} | {R['gem'][2]:.3f} | {R['gem2'][2]:.3f} 
 tldr+=f"| BERTScore F1 | {D['base'][3]:.3f} | {D['gem'][3]:.3f} | {D['gem2'][3]:.3f} | {D['ft'][3]:.3f} | {D['q4'][3]:.3f} |\n"
 tldr+=f"| Unsupported claims per summary (15-bill audit, lower is better) | not audited | not audited | {_a('gem2')} | {_a('ft16')} | {_a('q4')} |\n"
 tldr+=f"| API cost per 1,000 calls | n/a | ${api1k:.2f} | see section 4.8 | self-hosted | self-hosted |\n\n"
-tldr+="Overlap scores favor the fine-tuned model, while the manual audit favors 2-shot Gemini on factual support. Details in sections 4.1, 4.7 and 4.10.\n\n"
+tldr+="Overlap scores favor the fine-tuned model, while the manual audit favors 2-shot Gemini on factual support. Base Qwen and zero-shot Gemini were not audited, so the audit cannot say whether fine-tuning itself increased unsupported claims. Details in sections 4.1, 4.7 and 4.10.\n\n"
 md=f"""# Sovereign AI Engine: summarizing US legislation with a model you run yourself
 
 > **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, scored higher than a low-cost API model (Gemini 3.1 Flash-Lite) on ROUGE-2, ROUGE-L and BERTScore, whether the API model was prompted with zero or two examples (ROUGE-1 is level with the 2-shot prompt), and above roughly **{cross:,.0f} calls per month** it is also cheaper to run yourself.
