@@ -6,6 +6,17 @@
 >
 > **Faithfulness caveat:** in a 15-bill manual spot check (section 4.10), the fine-tuned models had more claims unsupported by the bill than 2-shot Gemini, even though they scored higher on overlap metrics (ROUGE, BERTScore).
 
+## At a glance
+
+| | Base Qwen 3B | Gemini zero-shot | Gemini 2-shot | Fine-tuned 16-bit | Fine-tuned Q4_K_M |
+|---|---|---|---|---|---|
+| ROUGE-L | 0.319 | 0.320 | 0.375 | 0.409 | 0.400 |
+| BERTScore F1 | 0.813 | 0.820 | 0.841 | 0.852 | 0.846 |
+| Unsupported claims per summary (15-bill audit, lower is better) | not audited | not audited | 0.20 | 1.00 | 0.53 |
+| API cost per 1,000 calls | n/a | $0.77 | see section 4.8 | self-hosted | self-hosted |
+
+Overlap scores favor the fine-tuned model, while the manual audit favors 2-shot Gemini on factual support. Details in sections 4.1, 4.7 and 4.10.
+
 ## 1. Purpose of this project
 
 Many organizations (hospitals, banks, courts, governments) want AI to read long documents but cannot send them to an outside company, or find the per-call API bill too high at scale. This project tests the alternative, a **"sovereign" AI engine**: an open-weight model that runs on hardware you control.

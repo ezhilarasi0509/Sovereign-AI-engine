@@ -48,6 +48,20 @@ if os.path.exists("results/speed_mac.json"):
     for m,n in [("billsum-q8","Q8_0"),("billsum-q4b","Q4_K_M")]:
         spd+=f"| {n} | {sp[m]['n']} | {sp[m]['p50_s']} | {sp[m]['p95_s']} | {sp[m]['tok_per_s']} |\n"
     spd+="\nBoth models ran alternately on an otherwise idle machine, 29 bills per round, 2 rounds, 300-token cap.\n\n"
+import csv
+aud={}
+if os.path.exists("results/audit_results.csv"):
+    tmp={}
+    for r_ in csv.DictReader(open("results/audit_results.csv")):
+        tmp.setdefault(r_["system"],[]).append(int(r_["unsupported_claims"]))
+    aud={k:sum(v_)/len(v_) for k,v_ in tmp.items()}
+def _a(k): return f"{aud[k]:.2f}" if k in aud else "not audited"
+tldr="## At a glance\n\n| | Base Qwen 3B | Gemini zero-shot | Gemini 2-shot | Fine-tuned 16-bit | Fine-tuned Q4_K_M |\n|---|---|---|---|---|---|\n"
+tldr+=f"| ROUGE-L | {R['base'][2]:.3f} | {R['gem'][2]:.3f} | {R['gem2'][2]:.3f} | {R['ft'][2]:.3f} | {R['q4'][2]:.3f} |\n"
+tldr+=f"| BERTScore F1 | {D['base'][3]:.3f} | {D['gem'][3]:.3f} | {D['gem2'][3]:.3f} | {D['ft'][3]:.3f} | {D['q4'][3]:.3f} |\n"
+tldr+=f"| Unsupported claims per summary (15-bill audit, lower is better) | not audited | not audited | {_a('gem2')} | {_a('ft16')} | {_a('q4')} |\n"
+tldr+=f"| API cost per 1,000 calls | n/a | ${api1k:.2f} | see section 4.8 | self-hosted | self-hosted |\n\n"
+tldr+="Overlap scores favor the fine-tuned model, while the manual audit favors 2-shot Gemini on factual support. Details in sections 4.1, 4.7 and 4.10.\n\n"
 md=f"""# Sovereign AI Engine: summarizing US legislation with a model you run yourself
 
 > **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, scored higher than a low-cost API model (Gemini 3.1 Flash-Lite) on ROUGE-2, ROUGE-L and BERTScore, whether the API model was prompted with zero or two examples (ROUGE-1 is level with the 2-shot prompt), and above roughly **{cross:,.0f} calls per month** it is also cheaper to run yourself.
@@ -56,7 +70,7 @@ md=f"""# Sovereign AI Engine: summarizing US legislation with a model you run yo
 >
 > **Faithfulness caveat:** in a 15-bill manual spot check (section 4.10), the fine-tuned models had more claims unsupported by the bill than 2-shot Gemini, even though they scored higher on overlap metrics (ROUGE, BERTScore).
 
-## 1. Purpose of this project
+{tldr}## 1. Purpose of this project
 
 Many organizations (hospitals, banks, courts, governments) want AI to read long documents but cannot send them to an outside company, or find the per-call API bill too high at scale. This project tests the alternative, a **"sovereign" AI engine**: an open-weight model that runs on hardware you control.
 
