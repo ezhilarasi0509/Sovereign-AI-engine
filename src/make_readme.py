@@ -70,7 +70,11 @@ md=f"""# Sovereign AI Engine: summarizing US legislation with a model you run yo
 >
 > **Faithfulness caveat:** in a 15-bill manual spot check (section 4.10), the fine-tuned models had more claims unsupported by the bill than 2-shot Gemini, even though they scored higher on overlap metrics (ROUGE, BERTScore).
 
-{tldr}## 1. Purpose of this project
+{tldr}## Architecture
+
+![Architecture of the Sovereign AI engine](docs/architecture_simple.svg)
+
+## 1. Purpose of this project
 
 Many organizations (hospitals, banks, courts, governments) want AI to read long documents but cannot send them to an outside company, or find the per-call API bill too high at scale. This project tests the alternative, a **"sovereign" AI engine**: an open-weight model that runs on hardware you control.
 

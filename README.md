@@ -17,6 +17,10 @@
 
 Overlap scores favor the fine-tuned model, while the manual audit favors 2-shot Gemini on factual support. Base Qwen and zero-shot Gemini were not audited, so the audit cannot say whether fine-tuning itself increased unsupported claims. Details in sections 4.1, 4.7 and 4.10.
 
+## Architecture
+
+![Architecture of the Sovereign AI engine](docs/architecture_simple.svg)
+
 ## 1. Purpose of this project
 
 Many organizations (hospitals, banks, courts, governments) want AI to read long documents but cannot send them to an outside company, or find the per-call API bill too high at scale. This project tests the alternative, a **"sovereign" AI engine**: an open-weight model that runs on hardware you control.
