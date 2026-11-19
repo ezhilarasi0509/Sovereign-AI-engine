@@ -53,6 +53,8 @@ md=f"""# Sovereign AI Engine: summarizing US legislation with a model you run yo
 > **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, scored higher than a low-cost API model (Gemini 3.1 Flash-Lite) on ROUGE-2, ROUGE-L and BERTScore, whether the API model was prompted with zero or two examples (ROUGE-1 is level with the 2-shot prompt), and above roughly **{cross:,.0f} calls per month** it is also cheaper to run yourself.
 >
 > **Licensing note:** the base model (Qwen2.5-3B-Instruct) is released under the Qwen Research License, which allows non-commercial use only. See section 13.
+>
+> **Faithfulness caveat:** in a 15-bill manual spot check (section 4.10), the fine-tuned models had more claims unsupported by the bill than 2-shot Gemini, even though they scored higher on overlap metrics (ROUGE, BERTScore).
 
 ## 1. Purpose of this project
 
@@ -168,7 +170,7 @@ Below the crossover the API is cheaper because you pay nothing when idle. Above 
 | Documents cannot leave your infrastructure (regulated or private data) | Self-host, even below the crossover |
 | Steady volume above about {cross/30:,.0f} calls per day | Self-host the fine-tuned 16-bit model on a GPU |
 | Laptop, edge or small server | Fine-tuned Q4_K_M, a small quality loss for a 3x smaller file |
-| Need top quality on a narrow, well-defined task | Fine-tune a small model on your own examples |
+| Need the closest match to a reference style on a narrow task | Fine-tune a small model on your own examples, then audit its factual accuracy |
 
 ## 6. What was built (repository map)
 

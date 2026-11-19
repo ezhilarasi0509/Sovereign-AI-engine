@@ -48,5 +48,5 @@ After the 200-word cut, fine-tuned minus zero-shot Gemini is +0.092 ROUGE-L [+0.
 | Fine-tuned Q8_0 | 541 | 16 | 3.0% [1.8%, 4.7%] |
 | Fine-tuned Q4_K_M | 486 | 16 | 3.3% [2.0%, 5.3%] |
 
-Fine-tuning improved style and overlap but showed no evidence of better factual grounding on this check: the 16-bit model had the highest rate of unmatched numbers, though its interval overlaps the others, so this is suggestive rather than conclusive. Verify facts before using any summary in a legal setting.
+Fine-tuning improved style and overlap but showed no evidence of better factual grounding on this check: the 16-bit model had the highest rate of unmatched numbers, though its interval overlaps the others, so this is suggestive rather than conclusive. The manual audit (section 4.10) points the same way. Verify facts before using any summary in a legal setting.
 

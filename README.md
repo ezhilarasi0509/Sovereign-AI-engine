@@ -3,6 +3,8 @@
 > **One-line answer:** a small open-weight model (3B parameters), fine-tuned for free on a single T4 GPU, scored higher than a low-cost API model (Gemini 3.1 Flash-Lite) on ROUGE-2, ROUGE-L and BERTScore, whether the API model was prompted with zero or two examples (ROUGE-1 is level with the 2-shot prompt), and above roughly **472,705 calls per month** it is also cheaper to run yourself.
 >
 > **Licensing note:** the base model (Qwen2.5-3B-Instruct) is released under the Qwen Research License, which allows non-commercial use only. See section 13.
+>
+> **Faithfulness caveat:** in a 15-bill manual spot check (section 4.10), the fine-tuned models had more claims unsupported by the bill than 2-shot Gemini, even though they scored higher on overlap metrics (ROUGE, BERTScore).
 
 ## 1. Purpose of this project
 
@@ -185,7 +187,7 @@ After the 200-word cut, fine-tuned minus zero-shot Gemini is +0.092 ROUGE-L [+0.
 | Fine-tuned Q8_0 | 541 | 16 | 3.0% [1.8%, 4.7%] |
 | Fine-tuned Q4_K_M | 486 | 16 | 3.3% [2.0%, 5.3%] |
 
-Fine-tuning improved style and overlap but showed no evidence of better factual grounding on this check: the 16-bit model had the highest rate of unmatched numbers, though its interval overlaps the others, so this is suggestive rather than conclusive. Verify facts before using any summary in a legal setting.
+Fine-tuning improved style and overlap but showed no evidence of better factual grounding on this check: the 16-bit model had the highest rate of unmatched numbers, though its interval overlaps the others, so this is suggestive rather than conclusive. The manual audit (section 4.10) points the same way. Verify facts before using any summary in a legal setting.
 
 ### 4.8 Cost sensitivity
 
@@ -220,6 +222,25 @@ With about 50 bills per bin, differences between bins are indicative only and we
 
 Per-bill comparison, fine-tuned 16-bit against 2-shot Gemini: the fine-tuned model scores higher on 54% of bills, lower on 46%. Averages hide variation, so see [docs/examples.md](docs/examples.md) for the three bills where the fine-tuned model gains most and the three where it loses most.
 
+### 4.10 Manual faithfulness audit
+
+One reviewer, assisted by an AI model, checked 15 randomly chosen test bills. For each bill the three summaries were shown anonymously (labels A, B, C in shuffled order, each cut to its first 200 words) and the reviewer counted claims the bill does not support (amounts, dates, names, programs or requirements that are missing from or contradict the bill).
+
+| System | Summaries | Avg unsupported claims | Summaries with at least one (95% Wilson CI) |
+|---|---|---|---|
+| Fine-tuned 16-bit | 15 | 1.00 | 10/15 = 67% [42%, 85%] |
+| Gemini 3.1 Flash-Lite (2-shot) | 15 | 0.20 | 3/15 = 20% [7%, 45%] |
+| Fine-tuned Q4_K_M | 15 | 0.53 | 7/15 = 47% [25%, 70%] |
+
+Paired difference in average unsupported claims per summary (bootstrap over bills; a negative value means fewer unsupported claims):
+
+| Comparison | Mean difference | 95% CI |
+|---|---|---|
+| Fine-tuned 16-bit minus Gemini 3.1 Flash-Lite (2-shot) | +0.80 | [+0.33, +1.27] |
+| Fine-tuned 16-bit minus Fine-tuned Q4_K_M | +0.47 | [+0.07, +0.87] |
+
+Limits: the counts were proposed by an AI model (Claude) after it read each bill and the three summaries, and the reviewer entered them, so this is an AI-assisted audit and not an independent human review. The counting rule was: a summary claim counts as unsupported if the bill does not say it or the summary states it more strongly than the bill does; claims that are weaker than the bill, and omissions, do not count. Some counts were judgment calls. The reviewer knew which project this was, only 15 bills were checked, and style cues such as length or run-on text can still hint at the system. Treat this as a spot check, not a measurement of overall factual accuracy.
+
 ## 5. Which option should you pick?
 
 | Your situation | Suggested option |
@@ -228,7 +249,7 @@ Per-bill comparison, fine-tuned 16-bit against 2-shot Gemini: the fine-tuned mod
 | Documents cannot leave your infrastructure (regulated or private data) | Self-host, even below the crossover |
 | Steady volume above about 15,757 calls per day | Self-host the fine-tuned 16-bit model on a GPU |
 | Laptop, edge or small server | Fine-tuned Q4_K_M, a small quality loss for a 3x smaller file |
-| Need top quality on a narrow, well-defined task | Fine-tune a small model on your own examples |
+| Need the closest match to a reference style on a narrow task | Fine-tune a small model on your own examples, then audit its factual accuracy |
 
 ## 6. What was built (repository map)
 

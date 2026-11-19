@@ -44,7 +44,7 @@ for k in N:
             if len(t)<2: continue
             tot+=1; bad+=t not in bn
     lo,hi=wilson(bad,tot); md+=f"| {N[k]} | {tot} | {bad} | {bad/tot*100:.1f}% [{lo*100:.1f}%, {hi*100:.1f}%] |\n"
-md+="\nFine-tuning improved style and overlap but showed no evidence of better factual grounding on this check: the 16-bit model had the highest rate of unmatched numbers, though its interval overlaps the others, so this is suggestive rather than conclusive. Verify facts before using any summary in a legal setting.\n\n"
+md+="\nFine-tuning improved style and overlap but showed no evidence of better factual grounding on this check: the 16-bit model had the highest rate of unmatched numbers, though its interval overlaps the others, so this is suggestive rather than conclusive. The manual audit (section 4.10) points the same way. Verify facts before using any summary in a legal setting.\n\n"
 open("results/analysis.md","w").write(md); print(md)
 s=open("README.md").read()
 if "### 4.7" not in s and "## 5. Which option should you pick?" in s:

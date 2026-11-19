@@ -16,7 +16,7 @@ if os.path.exists("audit/sheet.csv") and os.path.exists("audit/.key.json"):
         A={s:np.array([full[b][s] for b in ids]) for s in N}
         def boot(f):
             bs=[f(rng.integers(0,n,n)) for _ in range(5000)]; return np.percentile(bs,[2.5,97.5])
-        md=f"### 4.10 Manual faithfulness audit\n\nOne reviewer checked {n} randomly chosen test bills. For each bill the three summaries were shown anonymously (labels A, B, C in shuffled order, each cut to its first 200 words) and the reviewer counted claims the bill does not support (amounts, dates, names, programs or requirements that are missing from or contradict the bill).\n\n"
+        md=f"### 4.10 Manual faithfulness audit\n\nOne reviewer, assisted by an AI model, checked {n} randomly chosen test bills. For each bill the three summaries were shown anonymously (labels A, B, C in shuffled order, each cut to its first 200 words) and the reviewer counted claims the bill does not support (amounts, dates, names, programs or requirements that are missing from or contradict the bill).\n\n"
         md+="| System | Summaries | Avg unsupported claims | Summaries with at least one (95% Wilson CI) |\n|---|---|---|---|\n"
         for s in N:
             k=int((A[s]>0).sum()); lo,hi=wilson(k,n)
@@ -25,7 +25,7 @@ if os.path.exists("audit/sheet.csv") and os.path.exists("audit/.key.json"):
         for a,b in [("ft16","gem2"),("ft16","q4")]:
             lo,hi=boot(lambda i:(A[a][i]-A[b][i]).mean())
             md+=f"| {N[a]} minus {N[b]} | {(A[a]-A[b]).mean():+.2f} | [{lo:+.2f}, {hi:+.2f}] |\n"
-        md+=f"\nLimits: a single reviewer who knew which project this was, only {n} bills, and style cues can still hint at the system. Treat this as a spot check, not a measurement of overall factual accuracy.\n\n"
+        md+=f"\nLimits: the counts were proposed by an AI model (Claude) after it read each bill and the three summaries, and the reviewer entered them, so this is an AI-assisted audit and not an independent human review. The counting rule was: a summary claim counts as unsupported if the bill does not say it or the summary states it more strongly than the bill does; claims that are weaker than the bill, and omissions, do not count. Some counts were judgment calls. The reviewer knew which project this was, only {n} bills were checked, and style cues such as length or run-on text can still hint at the system. Treat this as a spot check, not a measurement of overall factual accuracy.\n\n"
         open("results/audit.md","w").write(md)
         with open("results/audit_results.csv","w",newline="") as f:
             w=csv.writer(f); w.writerow(["bill_id","system","unsupported_claims"])
