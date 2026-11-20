@@ -89,6 +89,8 @@ Many organizations (hospitals, banks, courts, governments) want AI to read long 
 
 **Who this is for:** engineers and managers deciding between "pay an API" and "run our own model", and anyone who wants a worked, measured example of that decision.
 
+**New to this topic?** Read the plain-language walkthrough of every step, tool and result: [PROJECT_EXPLAINED.md](PROJECT_EXPLAINED.md).
+
 ## 2. The task and the data
 
 - **Task:** read a US congressional bill and write a short, factual legislative summary (at most 200 words).
